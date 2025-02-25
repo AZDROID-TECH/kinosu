@@ -1,0 +1,55 @@
+import fs from 'fs';
+import path from 'path';
+import Database from 'better-sqlite3';
+
+const BACKUP_DIR = path.join(__dirname, '../../backups');
+
+export const createBackup = () => {
+  // Yedəkləmə qovluğunu yarat
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  }
+
+  const date = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.join(BACKUP_DIR, `kinosu-${date}.db`);
+
+  try {
+    // Mövcud verilənlər bazasını kopyala
+    fs.copyFileSync('kinosu.db', backupPath);
+    console.log(`Verilənlər bazası yedəkləndi: ${backupPath}`);
+    return backupPath;
+  } catch (error) {
+    console.error('Yedəkləmə zamanı xəta baş verdi:', error);
+    throw error;
+  }
+};
+
+export const restoreBackup = (backupPath: string) => {
+  try {
+    // Yedəkdən bərpa et
+    fs.copyFileSync(backupPath, 'kinosu.db');
+    console.log(`Verilənlər bazası bərpa edildi: ${backupPath}`);
+  } catch (error) {
+    console.error('Bərpa zamanı xəta baş verdi:', error);
+    throw error;
+  }
+};
+
+export const listBackups = () => {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) {
+      return [];
+    }
+    return fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        path: path.join(BACKUP_DIR, file),
+        date: new Date(file.replace('kinosu-', '').replace('.db', '').replace(/-/g, ':')),
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  } catch (error) {
+    console.error('Yedekleri listelerken xəta baş verdi:', error);
+    return [];
+  }
+}; 
