@@ -10,13 +10,15 @@
   },
   "dependencies": {
     "@types/dotenv": "^8.2.3",
+    "@types/nodemailer": "^6.4.17",
     "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.10.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

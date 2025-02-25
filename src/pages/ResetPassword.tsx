@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -12,27 +12,37 @@ import {
 } from '@mui/material';
 import 'boxicons/css/boxicons.min.css';
 
-const Register = () => {
+const ResetPassword = () => {
   const navigate = useNavigate();
+  const { token } = useParams();
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
+    newPassword: '',
+    confirmPassword: '',
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      setError('Şifrələr uyğun gəlmir');
+      return;
+    }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('http://localhost:5000/api/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          token,
+          newPassword: formData.newPassword,
+        }),
       });
 
       const data = await response.json();
@@ -41,7 +51,10 @@ const Register = () => {
         throw new Error(data.error);
       }
 
-      navigate('/login');
+      setSuccess(data.message);
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
     } catch (err: any) {
       setError(err.message);
     }
@@ -86,7 +99,7 @@ const Register = () => {
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             }}
           >
-            <i className='bx bx-user-plus' style={{ fontSize: '24px', color: 'white' }}></i>
+            <i className='bx bx-lock-open-alt' style={{ fontSize: '24px', color: 'white' }}></i>
           </Box>
           <Typography
             component="h1"
@@ -96,7 +109,7 @@ const Register = () => {
               letterSpacing: '0.5px'
             }}
           >
-            Qeydiyyat
+            Şifrəni Yenilə
           </Typography>
         </Box>
 
@@ -117,6 +130,23 @@ const Register = () => {
           </Alert>
         )}
 
+        {success && (
+          <Alert 
+            severity="success" 
+            sx={{ 
+              width: '100%', 
+              mb: 2,
+              py: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+            icon={<i className='bx bx-check-circle' style={{ fontSize: '18px' }}></i>}
+          >
+            {success}
+          </Alert>
+        )}
+
         <Box 
           component="form" 
           onSubmit={handleSubmit} 
@@ -126,50 +156,11 @@ const Register = () => {
             required
             fullWidth
             size="small"
-            label="İstifadəçi adı"
-            name="username"
-            autoComplete="username"
-            autoFocus
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <i className='bx bx-user' style={{ fontSize: '18px', color: 'action.active' }}></i>
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 1.5 }}
-          />
-          <TextField
-            required
-            fullWidth
-            size="small"
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <i className='bx bx-envelope' style={{ fontSize: '18px', color: 'action.active' }}></i>
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 1.5 }}
-          />
-          <TextField
-            required
-            fullWidth
-            size="small"
-            name="password"
-            label="Şifrə"
+            name="newPassword"
+            label="Yeni şifrə"
             type={showPassword ? "text" : "password"}
-            autoComplete="new-password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            value={formData.newPassword}
+            onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -195,8 +186,27 @@ const Register = () => {
                 </InputAdornment>
               ),
             }}
+            sx={{ mb: 1.5 }}
+          />
+          <TextField
+            required
+            fullWidth
+            size="small"
+            name="confirmPassword"
+            label="Şifrəni təkrarla"
+            type={showPassword ? "text" : "password"}
+            value={formData.confirmPassword}
+            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <i className='bx bx-lock-alt' style={{ fontSize: '18px', color: 'action.active' }}></i>
+                </InputAdornment>
+              ),
+            }}
             sx={{ mb: 2 }}
           />
+
           <Button
             type="submit"
             fullWidth
@@ -216,67 +226,13 @@ const Register = () => {
               },
             }}
           >
-            <i className='bx bx-user-check' style={{ fontSize: '18px', marginRight: '6px' }}></i>
-            Qeydiyyatdan keç
+            <i className='bx bx-check' style={{ fontSize: '18px', marginRight: '6px' }}></i>
+            Şifrəni Yenilə
           </Button>
-
-          <Box 
-            sx={{ 
-              my: 2,
-              textAlign: 'center',
-              position: 'relative',
-              '&::before, &::after': {
-                content: '""',
-                position: 'absolute',
-                top: '50%',
-                width: '42%',
-                height: '1px',
-                backgroundColor: 'divider',
-              },
-              '&::before': { left: 0 },
-              '&::after': { right: 0 }
-            }}
-          >
-            <Typography 
-              variant="caption" 
-              component="span"
-              sx={{ 
-                bgcolor: 'background.paper',
-                px: 2,
-                color: 'text.secondary'
-              }}
-            >
-              və ya
-            </Typography>
-          </Box>
-
-          <Link
-            to="/login"
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
-            <Button
-              fullWidth
-              variant="outlined"
-              size="small"
-              sx={{
-                py: 1,
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  transform: 'translateY(-1px)',
-                },
-              }}
-            >
-              <i className='bx bx-log-in' style={{ fontSize: '18px', marginRight: '6px' }}></i>
-              Daxil ol
-            </Button>
-          </Link>
         </Box>
       </Paper>
     </Container>
   );
 };
 
-export default Register; 
+export default ResetPassword; 
