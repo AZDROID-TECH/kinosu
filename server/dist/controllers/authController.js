@@ -10,8 +10,10 @@ const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const path_1 = __importDefault(require("path"));
+const emailTemplates_1 = require("../templates/emailTemplates");
 // .env faylını yüklə
-dotenv_1.default.config();
+dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
 // Email doğrulama için regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const db = new better_sqlite3_1.default('kinosu.db');
@@ -37,30 +39,19 @@ transporter.verify((error) => {
 });
 const register = async (req, res) => {
     try {
-        console.log('Qeydiyyat tələbi alındı:', {
-            username: req.body.username,
-            email: req.body.email,
-            passwordProvided: !!req.body.password
-        });
         const { username, password, email } = req.body;
         // Doğrulama: Gerekli alanlar var mı?
         if (!username || !password) {
-            console.log('Qeydiyyat səhvi: İstifadəçi adı və ya şifrə verilməyib');
             return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
         }
         // Email formatını doğrula
         if (email && !EMAIL_REGEX.test(email)) {
-            console.log('Qeydiyyat səhvi: Yanlış e-poçt formatı', email);
             return res.status(400).json({ error: 'Düzgün e-poçt ünvanı daxil edin' });
         }
         // Kullanıcı zaten mevcut mu?
         const stmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?');
         const existingUser = stmt.get(username, email);
         if (existingUser) {
-            console.log('Qeydiyyat səhvi: İstifadəçi artıq mövcuddur', {
-                username: existingUser?.username === username,
-                email: existingUser?.email === email
-            });
             return res.status(409).json({ error: 'İstifadəçi adı və ya e-poçt artıq istifadə olunur' });
         }
         // Şifreyi hashle
@@ -68,7 +59,6 @@ const register = async (req, res) => {
         // Kullanıcıyı oluştur
         const insertStmt = db.prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)');
         const result = insertStmt.run(username, hashedPassword, email || null);
-        console.log('İstifadəçi uğurla yaradıldı:', { userId: result.lastInsertRowid });
         res.status(201).json({ message: 'İstifadəçi uğurla qeydiyyatdan keçdi' });
     }
     catch (error) {
@@ -79,32 +69,24 @@ const register = async (req, res) => {
 exports.register = register;
 const login = async (req, res) => {
     try {
-        console.log('Giriş tələbi alındı:', {
-            username: req.body.username,
-            passwordProvided: !!req.body.password
-        });
         const { username, password } = req.body;
         // Doğrulama: Gerekli alanlar var mı?
         if (!username || !password) {
-            console.log('Giriş səhvi: İstifadəçi adı və ya şifrə verilməyib');
             return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
         }
         // Kullanıcıyı bul
         const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
         const user = stmt.get(username);
         if (!user) {
-            console.log('Giriş səhvi: İstifadəçi tapılmadı', { username });
             return res.status(401).json({ error: 'Yanlış istifadəçi adı və ya şifrə' });
         }
         // Şifreyi doğrula
         const isPasswordValid = await bcryptjs_1.default.compare(password, user.password);
         if (!isPasswordValid) {
-            console.log('Giriş səhvi: Yanlış şifrə', { username });
             return res.status(401).json({ error: 'Yanlış istifadəçi adı və ya şifrə' });
         }
         // JWT token oluştur
         const token = jsonwebtoken_1.default.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET || 'default_secret', { expiresIn: '24h' });
-        console.log('İstifadəçi uğurla daxil oldu:', { username, userId: user.id });
         res.json({ token });
     }
     catch (error) {
@@ -128,18 +110,21 @@ const forgotPassword = async (req, res) => {
         const resetTokenExpiry = Date.now() + 3600000; // 1 saat
         const updateStmt = db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?');
         updateStmt.run(resetToken, resetTokenExpiry, email);
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+        // Yeni oluşturduğumuz şablon fonksiyonunu kullanıyoruz
+        const emailHtml = (0, emailTemplates_1.getPasswordResetTemplate)(resetToken, user.username);
         await transporter.sendMail({
-            from: SMTP_USER,
+            from: {
+                name: 'Kinosu Film Platforması',
+                address: SMTP_USER
+            },
             to: email,
             subject: 'Kinosu - Şifrə Yeniləmə Tələbi',
-            html: `
-        <h1>Kinosu</h1>
-        <p>Şifrənizi yeniləmək üçün aşağıdakı linkə klikləyin:</p>
-        <a href="${resetUrl}">Şifrəni Yenilə</a>
-        <p>Bu link 1 saat ərzində etibarlıdır.</p>
-        <p>Əgər siz şifrə yeniləmə tələbi göndərməmisinizsə, bu emaili nəzərə almayın.</p>
-      `,
+            html: emailHtml,
+            headers: {
+                'X-Priority': '1', // Yüksek öncelik
+                'X-MSMail-Priority': 'High',
+                'Importance': 'High'
+            }
         });
         res.json({ message: 'Şifrə yeniləmə linki email ünvanınıza göndərildi' });
     }

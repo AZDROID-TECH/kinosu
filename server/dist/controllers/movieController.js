@@ -15,10 +15,8 @@ const getMovies = (req, res) => {
             return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
         }
         const userId = req.user.userId;
-        console.log(`${userId} ID'li istifadəçi üçün filmlər alınır`);
         const stmt = db.prepare('SELECT * FROM movies WHERE user_id = ?');
         const movies = stmt.all(userId);
-        console.log(`${movies.length} film tapıldı`);
         res.json(movies);
     }
     catch (error) {
@@ -54,12 +52,11 @@ exports.searchMovies = searchMovies;
 const addMovie = (req, res) => {
     try {
         if (!req.user || !req.user.userId) {
-            console.error('addMovie: İstifadəçi kimliği yok veya geçersiz', { user: req.user });
+            console.error('addMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
             return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
         }
         const userId = req.user.userId;
         const { title, imdb_id, poster, imdb_rating, status } = req.body;
-        console.log(`Film əlavə edilir: ${title} - İstifadəçi: ${userId}`);
         const stmt = db.prepare(`
       INSERT INTO movies (user_id, title, imdb_id, poster, imdb_rating, status, user_rating)
       VALUES (?, ?, ?, ?, ?, ?, 0)
@@ -75,13 +72,12 @@ exports.addMovie = addMovie;
 const updateMovie = (req, res) => {
     try {
         if (!req.user || !req.user.userId) {
-            console.error('updateMovie: İstifadəçi kimliği yok veya geçersiz', { user: req.user });
+            console.error('updateMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
             return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
         }
         const userId = req.user.userId;
         const movieId = req.params.id;
         const { status, user_rating } = req.body;
-        console.log(`Film yenilənir: ${movieId} - İstifadəçi: ${userId}`);
         let query = 'UPDATE movies SET';
         const params = [];
         if (status !== undefined) {
@@ -107,12 +103,11 @@ exports.updateMovie = updateMovie;
 const deleteMovie = (req, res) => {
     try {
         if (!req.user || !req.user.userId) {
-            console.error('deleteMovie: İstifadəçi kimliği yok veya geçersiz', { user: req.user });
+            console.error('deleteMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
             return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
         }
         const userId = req.user.userId;
         const movieId = req.params.id;
-        console.log(`Film silinir: ${movieId} - İstifadəçi: ${userId}`);
         const stmt = db.prepare('DELETE FROM movies WHERE id = ? AND user_id = ?');
         stmt.run(movieId, userId);
         res.json({ message: 'Film uğurla silindi' });

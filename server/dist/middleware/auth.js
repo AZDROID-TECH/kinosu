@@ -6,7 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
+const path_1 = __importDefault(require("path"));
+dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -24,7 +25,7 @@ const authenticateToken = (req, res, next) => {
         next();
     }
     catch (error) {
-        console.error('Token doğrulama hatası:', error);
+        console.error('Token doğrulama xətası:', error);
         return res.status(403).json({ error: 'Token etibarsızdır' });
     }
 };

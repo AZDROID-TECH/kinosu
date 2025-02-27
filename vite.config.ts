@@ -6,7 +6,7 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// API URL'sini tanımlayalım - backend sunucusuna doğru URL
+// API URL'sini tanımlayalım
 const API_URL = 'http://localhost:5000';
 
 export default defineConfig({

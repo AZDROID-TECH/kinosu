@@ -88,7 +88,7 @@ app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../
 app.use('/api/auth', auth_1.default);
 app.use('/api/movies', movies_1.default);
 app.use('/api/user', user_1.default);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server ${PORT} portunda işləyir`);
 });
