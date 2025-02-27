@@ -5,10 +5,11 @@ import Database from 'better-sqlite3';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import path from 'path';
 import { getPasswordResetTemplate } from '../templates/emailTemplates';
 
 // .env faylını yüklə
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // Email doğrulama için regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

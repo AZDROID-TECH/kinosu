@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 
 // .env faylını yüklə
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 interface UserRecord {
   id: number;
