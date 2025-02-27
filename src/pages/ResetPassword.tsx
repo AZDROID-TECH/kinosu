@@ -11,7 +11,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 import 'boxicons/css/boxicons.min.css';
-import { API_URL } from '../config/api';
+import { authAPI } from '../services/api';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -23,11 +23,17 @@ const ResetPassword = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!token) {
+      setError('Etibarsız şifrə yeniləmə linki');
+      return;
+    }
 
     if (formData.newPassword !== formData.confirmPassword) {
       setError('Şifrələr uyğun gəlmir');
@@ -35,29 +41,22 @@ const ResetPassword = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          newPassword: formData.newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
-      }
-
-      setSuccess(data.message);
+      setIsSubmitting(true);
+      console.log('Şifrə yeniləmə tələbi göndərilir');
+      
+      const data = await authAPI.resetPassword(token, formData.newPassword);
+      
+      setSuccess(data.message || 'Şifrəniz uğurla yeniləndi');
+      console.log('Şifrə uğurla yeniləndi');
+      
       setTimeout(() => {
         navigate('/login');
       }, 3000);
     } catch (err: any) {
-      setError(err.message);
+      console.error('Şifrə yeniləmə xətası:', err);
+      setError(err.message || 'Şifrə yeniləmə zamanı xəta baş verdi');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -213,6 +212,7 @@ const ResetPassword = () => {
             fullWidth
             variant="contained"
             size="small"
+            disabled={isSubmitting}
             sx={{
               py: 1,
               borderRadius: 1.5,
@@ -227,8 +227,14 @@ const ResetPassword = () => {
               },
             }}
           >
-            <i className='bx bx-check' style={{ fontSize: '18px', marginRight: '6px' }}></i>
-            Şifrəni Yenilə
+            {isSubmitting ? (
+              <>Yüklənir...</>
+            ) : (
+              <>
+                <i className='bx bx-check' style={{ fontSize: '18px', marginRight: '6px' }}></i>
+                Şifrəni Yenilə
+              </>
+            )}
           </Button>
         </Box>
       </Paper>

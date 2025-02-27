@@ -5,15 +5,21 @@ import Database from 'better-sqlite3';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { getPasswordResetTemplate } from '../templates/emailTemplates';
 
 // .env faylını yüklə
 dotenv.config();
+
+// Email doğrulama için regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface User {
   id: number;
   username: string;
   password: string;
   email: string;
+  reset_token?: string | null;
+  reset_token_expiry?: number | null;
 }
 
 const db = new Database('kinosu.db');
@@ -41,59 +47,76 @@ transporter.verify((error) => {
 });
 
 export const register = async (req: Request, res: Response) => {
-  const { username, password, email } = req.body;
-
-  if (!username || !password || !email) {
-    return res.status(400).json({ error: 'Bütün sahələr doldurulmalıdır' });
-  }
-
-  if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-    return res.status(400).json({ error: 'Düzgün email ünvanı daxil edin' });
-  }
-
   try {
-    const userStmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?');
-    const existingUser = userStmt.get(username, email) as User | undefined;
+    const { username, password, email } = req.body;
 
-    if (existingUser) {
-      if (existingUser.username === username) {
-        return res.status(400).json({ error: 'Bu istifadəçi adı artıq mövcuddur' });
-      }
-      if (existingUser.email === email) {
-        return res.status(400).json({ error: 'Bu email ünvanı artıq qeydiyyatdan keçib' });
-      }
+    // Doğrulama: Gerekli alanlar var mı?
+    if (!username || !password) {
+      return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
+    }
+    
+    // Email formatını doğrula
+    if (email && !EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'Düzgün e-poçt ünvanı daxil edin' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const insertStmt = db.prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)');
-    insertStmt.run(username, hashedPassword, email);
+    // Kullanıcı zaten mevcut mu?
+    const stmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?');
+    const existingUser = stmt.get(username, email) as User | undefined;
 
+    if (existingUser) {
+      return res.status(409).json({ error: 'İstifadəçi adı və ya e-poçt artıq istifadə olunur' });
+    }
+
+    // Şifreyi hashle
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Kullanıcıyı oluştur
+    const insertStmt = db.prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)');
+    const result = insertStmt.run(username, hashedPassword, email || null);
+    
     res.status(201).json({ message: 'İstifadəçi uğurla qeydiyyatdan keçdi' });
   } catch (error) {
-    res.status(500).json({ error: 'Qeydiyyat zamanı xəta baş verdi' });
+    console.error('Qeydiyyat zamanı xəta baş verdi:', error);
+    res.status(500).json({ error: 'Server xətası baş verdi' });
   }
 };
 
 export const login = async (req: Request, res: Response) => {
-  const { username, password } = req.body;
-
   try {
-    const stmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?');
-    const user = stmt.get(username, username) as User | undefined;
+    const { username, password } = req.body;
+
+    // Doğrulama: Gerekli alanlar var mı?
+    if (!username || !password) {
+      return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
+    }
+
+    // Kullanıcıyı bul
+    const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
+    const user = stmt.get(username) as User;
 
     if (!user) {
-      return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
+      return res.status(401).json({ error: 'Yanlış istifadəçi adı və ya şifrə' });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
+    // Şifreyi doğrula
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Yanlış istifadəçi adı və ya şifrə' });
     }
 
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, username: user.username });
+    // JWT token oluştur
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      process.env.JWT_SECRET || 'default_secret',
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: 'Giriş zamanı xəta baş verdi' });
+    console.error('Giriş zamanı xəta baş verdi:', error);
+    res.status(500).json({ error: 'Server xətası baş verdi' });
   }
 };
 
@@ -118,23 +141,27 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const updateStmt = db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?');
     updateStmt.run(resetToken, resetTokenExpiry, email);
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    // Yeni oluşturduğumuz şablon fonksiyonunu kullanıyoruz
+    const emailHtml = getPasswordResetTemplate(resetToken, user.username);
 
     await transporter.sendMail({
-      from: SMTP_USER,
+      from: {
+        name: 'Kinosu Film Platforması',
+        address: SMTP_USER
+      },
       to: email,
       subject: 'Kinosu - Şifrə Yeniləmə Tələbi',
-      html: `
-        <h1>Kinosu</h1>
-        <p>Şifrənizi yeniləmək üçün aşağıdakı linkə klikləyin:</p>
-        <a href="${resetUrl}">Şifrəni Yenilə</a>
-        <p>Bu link 1 saat ərzində etibarlıdır.</p>
-        <p>Əgər siz şifrə yeniləmə tələbi göndərməmisinizsə, bu emaili nəzərə almayın.</p>
-      `,
+      html: emailHtml,
+      headers: {
+        'X-Priority': '1', // Yüksek öncelik
+        'X-MSMail-Priority': 'High',
+        'Importance': 'High'
+      }
     });
 
     res.json({ message: 'Şifrə yeniləmə linki email ünvanınıza göndərildi' });
   } catch (error) {
+    console.error('Şifrə yeniləmə xətası:', error);
     res.status(500).json({ error: 'Şifrə yeniləmə tələbi zamanı xəta baş verdi' });
   }
 };
@@ -160,6 +187,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     res.json({ message: 'Şifrəniz uğurla yeniləndi' });
   } catch (error) {
+    console.error('Şifrə yeniləmə xətası:', error);
     res.status(500).json({ error: 'Şifrə yeniləmə zamanı xəta baş verdi' });
   }
 }; 

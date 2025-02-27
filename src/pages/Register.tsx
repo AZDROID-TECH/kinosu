@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import 'boxicons/css/boxicons.min.css';
 import { API_URL } from '../config/api';
+import { authAPI } from '../services/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const Register = () => {
     username: '',
     email: '',
     password: '',
+    confirmPassword: ''
   });
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -58,23 +60,25 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
+    if (formData.password !== formData.confirmPassword) {
+      setError('Təkrarlanan şifrə eyni olmalıdır');
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      console.log('Qeydiyyat başladılır:', {
+        username: formData.username,
+        email: formData.email,
+        passwordLength: formData.password.length
       });
 
-      const data = await response.json();
+      // authAPI servisini kullanarak kayıt işlemi
+      await authAPI.register(formData);
 
-      if (!response.ok) {
-        throw new Error(data.error);
-      }
-
+      console.log('Qeydiyyat uğurlu oldu');
       navigate('/login');
     } catch (err: any) {
+      console.error('Qeydiyyat xətası:', err);
       setError(err.message);
     }
   };
@@ -380,6 +384,72 @@ const Register = () => {
               autoComplete="new-password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <i className='bx bx-lock-alt' style={{ 
+                      fontSize: isMobile ? '18px' : '20px', 
+                      color: isDarkMode ? '#9c27b0' : '#3f51b5' 
+                    }}></i>
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="password-toggle"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)'
+                      }}
+                    >
+                      <i className={`bx ${showPassword ? 'bx-show' : 'bx-hide'}`} style={{ fontSize: isMobile ? '18px' : '20px' }}></i>
+                    </button>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ 
+                mb: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  backgroundColor: isDarkMode 
+                    ? alpha(theme.palette.background.paper, 0.4)
+                    : alpha('#ffffff', 0.6),
+                  '&:hover fieldset': {
+                    borderColor: isDarkMode ? '#9c27b0' : '#3f51b5',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: isDarkMode ? '#9c27b0' : '#3f51b5',
+                    borderWidth: '2px',
+                  },
+                },
+                '& .MuiInputLabel-root': {
+                  color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+                  '&.Mui-focused': {
+                    color: isDarkMode ? '#9c27b0' : '#3f51b5',
+                  },
+                  fontSize: isMobile ? '0.85rem' : '0.9rem',
+                },
+                '& .MuiInputBase-input': {
+                  color: isDarkMode ? '#fff' : 'rgba(0, 0, 0, 0.87)',
+                  fontSize: isMobile ? '0.9rem' : '1rem',
+                },
+              }}
+            />
+            <TextField
+              required
+              fullWidth
+              size={isMobile ? "small" : "medium"}
+              name="confirmPassword"
+              label="Şifrəni təkrarlayın"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              value={formData.confirmPassword}
+              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">

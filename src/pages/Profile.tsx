@@ -1,481 +1,585 @@
-import {
-  Container,
-  Box,
-  Typography,
-  Avatar,
-  Paper,
-  TextField,
-  IconButton,
-  Button,
-  Divider,
-  useTheme,
-  alpha,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Alert,
-} from '@mui/material';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect, useCallback } from 'react';
+import { Box, Typography, Paper, Container, Grid, Avatar, Button, Divider, Skeleton, CircularProgress } from '@mui/material';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { useTheme as useCustomTheme } from '../context/ThemeContext';
-import { useState, useRef } from 'react';
-import ReactCrop, { Crop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
-import 'boxicons/css/boxicons.min.css';
+import { useAuth } from '../context/AuthContext';
+import { userAPI } from '../services/api';
+import PersonIcon from '@mui/icons-material/Person';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
+import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import CheckIcon from '@mui/icons-material/Check';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EmailIcon from '@mui/icons-material/Email';
+import dayjs from 'dayjs';
+
+// Resim Kırpma Modalı için gerekli bileşenler
+import Crop from 'react-easy-crop';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Slider from '@mui/material/Slider';
+import { Point, Area } from 'react-easy-crop/types';
+
+interface UserProfileData {
+  id: number;
+  username: string;
+  email: string;
+  avatar: string | null;
+  createdAt: string;
+  watchlist: {
+    watchlist: number;
+    watching: number;
+    watched: number;
+  };
+}
+
+const getCroppedImg = (
+  imageSrc: string,
+  pixelCrop: Area
+): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.src = imageSrc;
+    
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Canvas context is not available'));
+        return;
+      }
+      
+      // Kare canvas boyutu
+      canvas.width = pixelCrop.width;
+      canvas.height = pixelCrop.height;
+      
+      // Resmi kırp ve çiz
+      ctx.drawImage(
+        image,
+        pixelCrop.x,
+        pixelCrop.y,
+        pixelCrop.width,
+        pixelCrop.height,
+        0,
+        0,
+        pixelCrop.width,
+        pixelCrop.height
+      );
+      
+      // Canvas'ı blob olarak dönüştür
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Canvas is empty'));
+            return;
+          }
+          resolve(blob);
+        },
+        'image/jpeg',
+        0.95
+      );
+    };
+    
+    image.onerror = () => {
+      reject(new Error('Error loading image'));
+    };
+  });
+};
 
 const Profile = () => {
-  const { username, email, avatar, updateAvatar, deleteAvatar } = useAuth();
   const { darkMode } = useCustomTheme();
-  const theme = useTheme();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const muiTheme = useMuiTheme();
+  const { username, refreshProfile, updateAvatar } = useAuth();
   
-  // Kırpma işlemi için state'ler
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Crop>({
-    unit: '%',
-    width: 100,
-    height: 100,
-    x: 0,
-    y: 0
-  });
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [cropError, setCropError] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Avatar işlemleri için state'ler
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [openCropModal, setOpenCropModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
-  // Profil fotoğrafı yükleme işlemi
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
-        setCropDialogOpen(true);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Kırpma işlemini tamamla
-  const handleCropComplete = async () => {
-    if (!imageRef.current || !crop.width || !crop.height) {
-      setCropError('Xahiş edirik şəkli kırpın');
-      return;
-    }
-
-    setIsLoading(true);
-    setCropError(null);
-
+  // Profil bilgilerini yükle
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
     try {
-      const canvas = document.createElement('canvas');
-      const scaleX = imageRef.current.naturalWidth / imageRef.current.width;
-      const scaleY = imageRef.current.naturalHeight / imageRef.current.height;
-
-      canvas.width = Math.floor(crop.width * scaleX);
-      canvas.height = Math.floor(crop.height * scaleY);
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Canvas konteksti yaradıla bilmədi');
-      }
-
-      ctx.imageSmoothingQuality = 'high';
-
-      ctx.drawImage(
-        imageRef.current,
-        Math.floor(crop.x * scaleX),
-        Math.floor(crop.y * scaleY),
-        Math.floor(crop.width * scaleX),
-        Math.floor(crop.height * scaleY),
-        0,
-        0,
-        Math.floor(crop.width * scaleX),
-        Math.floor(crop.height * scaleY)
-      );
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Şəkil formatına çevrilə bilmədi'));
-            }
-          },
-          'image/jpeg',
-          0.95
-        );
-      });
-
-      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-      
-      try {
-        await updateAvatar(file);
-        setCropDialogOpen(false);
-        setSelectedImage(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      } catch (apiError) {
-        console.error('Avatar yeniləmə xətası (detaylı):', apiError);
-        let errorMessage = 'API xətası baş verdi';
-        
-        if (apiError instanceof Error) {
-          errorMessage = apiError.message;
-          
-          // 404 hatasında daha açıklayıcı mesaj göster
-          if (errorMessage.includes('404')) {
-            errorMessage = 'Profil şəkli yükləmə xidməti əlçatan deyil. Backend serverin işləyib-işləmədiyini yoxlayın.';
-          }
-        }
-        
-        setCropError(errorMessage);
-      }
-    } catch (error) {
-      console.error('Şəkil hazırlama xətası:', error);
-      setCropError(error instanceof Error ? error.message : 'Şəkil hazırlama xətası baş verdi');
+      const data = await userAPI.getProfile();
+      setProfileData(data);
+      setError(null);
+    } catch (err) {
+      setError('Profil məlumatları yüklənərkən xəta baş verdi');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  // Resim seçildiğinde
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        setSelectedFile(reader.result as string);
+        setOpenCropModal(true);
+      };
     }
   };
 
-  // Profil fotoğrafını kaldır
-  const handleRemoveAvatar = async () => {
+  // Kırpma tamamlandığında
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  // Kırpılmış resmi yükle
+  const uploadCroppedImage = async () => {
+    if (!selectedFile || !croppedAreaPixels) return;
+    
     try {
-      await deleteAvatar();
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error) {
-      console.error('Error removing avatar:', error);
+      setAvatarLoading(true);
+      const croppedImage = await getCroppedImg(selectedFile, croppedAreaPixels);
+      
+      // Dosya nesnesini oluştur
+      const file = new File([croppedImage], 'avatar.jpg', { type: 'image/jpeg' });
+      
+      // Resmi yükle
+      const response = await userAPI.uploadAvatar(file);
+      
+      // AuthContext'te avatar'ı güncelle
+      updateAvatar(response.avatar);
+      
+      // Profil bilgilerini yenile
+      await loadProfile();
+      await refreshProfile();
+      
+      // Modalı kapat
+      setOpenCropModal(false);
+      setSelectedFile(null);
+    } catch (err) {
+      console.error('Avatar yükləmə xətası:', err);
+      setError('Avatar yükləmə zamanı xəta baş verdi');
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  // Avatar'ı sil
+  const deleteAvatar = async () => {
+    if (!window.confirm('Avatarınızı silmək istədiyinizə əminsiniz?')) return;
+    
+    try {
+      setAvatarLoading(true);
+      await userAPI.deleteAvatar();
+      
+      // AuthContext'te avatar'ı temizle
+      updateAvatar(null);
+      
+      // Profil bilgilerini yenile
+      await loadProfile();
+      await refreshProfile();
+    } catch (err) {
+      console.error('Avatar silmə xətası:', err);
+      setError('Avatar silmə zamanı xəta baş verdi');
+    } finally {
+      setAvatarLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 4,
-          bgcolor: darkMode 
-            ? alpha(theme.palette.background.paper, 0.8)
-            : alpha(theme.palette.background.paper, 0.8),
-          backdropFilter: 'blur(10px)',
-          border: '1px solid',
-          borderColor: darkMode 
-            ? 'rgba(255, 255, 255, 0.1)'
-            : 'rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        {/* Profil Başlığı */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 2, 
-          mb: 4,
-          flexDirection: { xs: 'column', sm: 'row' } 
-        }}>
-          <Box sx={{ position: 'relative' }}>
-            <Avatar
-              src={avatar || undefined}
-              sx={{
-                width: { xs: 100, sm: 120 },
-                height: { xs: 100, sm: 120 },
-                bgcolor: darkMode ? '#9c27b0' : '#3f51b5',
-                fontSize: '3rem',
-                border: '4px solid',
-                borderColor: darkMode 
-                  ? 'rgba(255, 255, 255, 0.2)'
-                  : 'rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              }}
-            >
-              {username?.[0].toUpperCase()}
-            </Avatar>
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleAvatarUpload}
-            />
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1, 
-              mt: 2,
-              justifyContent: 'center'
-            }}>
-              <Button
-                size="small"
-                onClick={() => fileInputRef.current?.click()}
-                startIcon={<i className='bx bx-upload'></i>}
-                sx={{
-                  textTransform: 'none',
-                  borderRadius: 2,
-                  bgcolor: darkMode ? 'rgba(156, 39, 176, 0.1)' : 'rgba(63, 81, 181, 0.1)',
-                  color: darkMode ? '#bb86fc' : '#3f51b5',
-                  '&:hover': {
-                    bgcolor: darkMode ? 'rgba(156, 39, 176, 0.2)' : 'rgba(63, 81, 181, 0.2)',
-                  },
-                }}
-              >
-                Şəkil yüklə
-              </Button>
-              {avatar && (
-                <IconButton
-                  size="small"
-                  onClick={handleRemoveAvatar}
-                  sx={{
-                    color: 'error.main',
-                    bgcolor: 'error.light',
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.error.main, 0.2),
-                    },
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      {error && (
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            bgcolor: 'error.main', 
+            color: 'white',
+            borderRadius: 2 
+          }}
+        >
+          <Typography>{error}</Typography>
+        </Paper>
+      )}
+      
+      <Grid container spacing={3}>
+        {/* Profil Kartı */}
+        <Grid item xs={12} md={4}>
+          <Paper 
+            elevation={3}
+            sx={{
+              p: 3,
+              height: '100%',
+              borderRadius: 3,
+              background: darkMode 
+                ? 'rgba(30, 30, 40, 0.8)'
+                : 'rgba(255, 255, 255, 0.8)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: darkMode 
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                : '0 8px 32px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            {loading ? (
+              <>
+                <Skeleton 
+                  variant="circular" 
+                  width={150} 
+                  height={150} 
+                  sx={{ mb: 2 }} 
+                />
+                <Skeleton variant="text" width="60%" height={30} sx={{ mb: 1 }} />
+                <Skeleton variant="text" width="40%" height={24} sx={{ mb: 2 }} />
+                <Skeleton variant="rectangular" width="100%" height={40} sx={{ mb: 1 }} />
+                <Skeleton variant="rectangular" width="100%" height={40} />
+              </>
+            ) : (
+              <>
+                <Box sx={{ position: 'relative', mb: 3 }}>
+                  <Avatar
+                    src={profileData?.avatar || undefined}
+                    sx={{
+                      width: 150,
+                      height: 150,
+                      bgcolor: darkMode ? '#9c27b0' : '#3f51b5',
+                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
+                      border: '4px solid',
+                      borderColor: darkMode ? 'rgba(156, 39, 176, 0.5)' : 'rgba(63, 81, 181, 0.5)',
+                      transition: 'all 0.3s ease',
+                    }}
+                  >
+                    {!profileData?.avatar && (
+                      <PersonIcon sx={{ fontSize: 80 }} />
+                    )}
+                  </Avatar>
+                  
+                  {avatarLoading && (
+                    <Box 
+                      sx={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        right: 0, 
+                        bottom: 0, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        borderRadius: '50%'
+                      }}
+                    >
+                      <CircularProgress color="secondary" />
+                    </Box>
+                  )}
+                </Box>
+                
+                <Typography 
+                  variant="h4" 
+                  gutterBottom
+                  sx={{ 
+                    color: darkMode ? '#bb86fc' : '#3f51b5',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
                   }}
                 >
-                  <i className='bx bx-trash'></i>
-                </IconButton>
-              )}
-            </Box>
-          </Box>
-
-          <Box sx={{ 
-            flex: 1,
-            textAlign: { xs: 'center', sm: 'left' }
-          }}>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 'bold',
-                mb: 1,
-                background: darkMode
-                  ? 'linear-gradient(45deg, #bb86fc 30%, #9c27b0 90%)'
-                  : 'linear-gradient(45deg, #3f51b5 30%, #757de8 90%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              }}
-            >
-              {username}
-            </Typography>
-            <Typography
-              variant="body1"
-              color="text.secondary"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                justifyContent: { xs: 'center', sm: 'flex-start' },
-              }}
-            >
-              <i className='bx bx-envelope' style={{ fontSize: '1.2rem' }}></i>
-              {email || 'E-poçt təyin edilməyib'}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Divider sx={{ my: 3 }} />
-
-        {/* Profil Bilgileri */}
-        <Box sx={{ mt: 3 }}>
-          <Typography
-            variant="h6"
+                  {profileData?.username}
+                </Typography>
+                
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    mb: 3
+                  }}
+                >
+                  <CalendarMonthIcon fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    {profileData?.createdAt 
+                      ? `Qoşuldu: ${dayjs(profileData.createdAt).format('DD.MM.YYYY')}`
+                      : 'Qeydiyyat tarixi mövcud deyil'}
+                  </Typography>
+                </Box>
+                
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    mb: 3,
+                    alignSelf: 'flex-start'
+                  }}
+                >
+                  <EmailIcon fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    {profileData?.email || 'Email mövcud deyil'}
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ width: '100%', mt: 1 }}>
+                  <input
+                    accept="image/*"
+                    id="avatar-upload"
+                    type="file"
+                    hidden
+                    onChange={handleFileChange}
+                  />
+                  <label htmlFor="avatar-upload">
+                    <Button
+                      component="span"
+                      variant="contained"
+                      color="primary"
+                      startIcon={<PhotoCamera />}
+                      fullWidth
+                      sx={{ 
+                        mb: 2,
+                        borderRadius: 2,
+                        py: 1,
+                        background: darkMode 
+                          ? 'linear-gradient(45deg, #9c27b0 0%, #673ab7 100%)'
+                          : 'linear-gradient(45deg, #3f51b5 0%, #673ab7 100%)',
+                        boxShadow: darkMode 
+                          ? '0 4px 20px rgba(156, 39, 176, 0.3)'
+                          : '0 4px 20px rgba(63, 81, 181, 0.3)',
+                      }}
+                    >
+                      Profil şəkli yüklə
+                    </Button>
+                  </label>
+                  
+                  {profileData?.avatar && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      fullWidth
+                      onClick={deleteAvatar}
+                      sx={{ borderRadius: 2, py: 1 }}
+                    >
+                      Şəkli sil
+                    </Button>
+                  )}
+                </Box>
+              </>
+            )}
+          </Paper>
+        </Grid>
+        
+        {/* İzleme Listesi İstatistikleri */}
+        <Grid item xs={12} md={8}>
+          <Paper 
+            elevation={3}
             sx={{
-              mb: 3,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              color: darkMode ? '#bb86fc' : '#3f51b5',
+              p: 3,
+              borderRadius: 3,
+              background: darkMode 
+                ? 'rgba(30, 30, 40, 0.8)'
+                : 'rgba(255, 255, 255, 0.8)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: darkMode 
+                ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                : '0 8px 32px rgba(0, 0, 0, 0.1)',
+              height: '100%',
             }}
           >
-            <i className='bx bx-user-circle' style={{ fontSize: '1.5rem' }}></i>
-            Profil Məlumatları
-          </Typography>
-
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="İstifadəçi adı"
-              value={username}
-              disabled
-              InputProps={{
-                startAdornment: (
-                  <i className='bx bx-user' style={{ 
-                    fontSize: '1.2rem', 
-                    marginRight: '8px',
-                    color: darkMode ? '#bb86fc' : '#3f51b5'
-                  }}></i>
-                ),
+            <Typography 
+              variant="h5" 
+              gutterBottom
+              sx={{ 
+                color: darkMode ? '#bb86fc' : '#3f51b5',
+                fontWeight: 'bold',
+                mb: 3
               }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  bgcolor: darkMode 
-                    ? alpha(theme.palette.background.paper, 0.3)
-                    : alpha(theme.palette.background.paper, 0.5),
-                },
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="E-poçt"
-              value={email}
-              disabled
-              InputProps={{
-                startAdornment: (
-                  <i className='bx bx-envelope' style={{ 
-                    fontSize: '1.2rem', 
-                    marginRight: '8px',
-                    color: darkMode ? '#bb86fc' : '#3f51b5'
-                  }}></i>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  bgcolor: darkMode 
-                    ? alpha(theme.palette.background.paper, 0.3)
-                    : alpha(theme.palette.background.paper, 0.5),
-                },
-              }}
-            />
-          </Box>
-        </Box>
-      </Paper>
-
-      {/* Resim Kırpma Dialog'u */}
+            >
+              İzləmə siyahısı statistikası
+            </Typography>
+            
+            {loading ? (
+              <>
+                <Skeleton variant="rectangular" height={70} sx={{ mb: 2, borderRadius: 2 }} />
+                <Skeleton variant="rectangular" height={70} sx={{ mb: 2, borderRadius: 2 }} />
+                <Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
+              </>
+            ) : (
+              <Box>
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    bgcolor: darkMode ? 'rgba(244, 143, 177, 0.15)' : 'rgba(244, 143, 177, 0.1)',
+                    p: 2,
+                    borderRadius: 2,
+                    mb: 2
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 0 } }}>
+                    <VisibilityIcon 
+                      sx={{ 
+                        color: '#f48fb1',
+                        mr: 2,
+                        fontSize: 32
+                      }} 
+                    />
+                    <Box>
+                      <Typography variant="h6">İzləmək istədiklərim</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Gələcəkdə izləmək üçün seçilmiş filmlər
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: '#f48fb1',
+                      ml: { xs: 0, sm: 2 }
+                    }}
+                  >
+                    {profileData?.watchlist.watchlist || 0}
+                  </Typography>
+                </Box>
+                
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    bgcolor: darkMode ? 'rgba(129, 199, 132, 0.15)' : 'rgba(129, 199, 132, 0.1)',
+                    p: 2,
+                    borderRadius: 2,
+                    mb: 2
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 0 } }}>
+                    <PlayArrowIcon 
+                      sx={{ 
+                        color: '#81c784',
+                        mr: 2,
+                        fontSize: 32
+                      }} 
+                    />
+                    <Box>
+                      <Typography variant="h6">İzləməkdə olduğum</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Hal-hazırda izlənilən filmlər
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: '#81c784',
+                      ml: { xs: 0, sm: 2 }
+                    }}
+                  >
+                    {profileData?.watchlist.watching || 0}
+                  </Typography>
+                </Box>
+                
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    bgcolor: darkMode ? 'rgba(144, 202, 249, 0.15)' : 'rgba(144, 202, 249, 0.1)',
+                    p: 2,
+                    borderRadius: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 1, sm: 0 } }}>
+                    <CheckIcon 
+                      sx={{ 
+                        color: '#90caf9',
+                        mr: 2,
+                        fontSize: 32
+                      }} 
+                    />
+                    <Box>
+                      <Typography variant="h6">İzlədiklərim</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Artıq izlənilmiş filmlər
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 'bold',
+                      color: '#90caf9',
+                      ml: { xs: 0, sm: 2 }
+                    }}
+                  >
+                    {profileData?.watchlist.watched || 0}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+      
+      {/* Resim Kırpma Modalı */}
       <Dialog 
-        open={cropDialogOpen} 
-        onClose={() => {
-          setCropDialogOpen(false);
-          setSelectedImage(null);
-          setCropError(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        }}
+        open={openCropModal} 
+        onClose={() => setOpenCropModal(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            bgcolor: darkMode 
-              ? alpha(theme.palette.background.paper, 0.9)
-              : alpha(theme.palette.background.paper, 0.9),
-            backdropFilter: 'blur(10px)',
-            overflow: 'hidden',
-            '& .MuiDialogContent-root': {
-              p: 0,
-            },
-          }
-        }}
       >
-        <DialogTitle 
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            color: darkMode ? '#bb86fc' : '#3f51b5',
-            p: 2,
-            borderBottom: 1,
-            borderColor: darkMode 
-              ? 'rgba(255, 255, 255, 0.1)'
-              : 'rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <i className='bx bx-crop' style={{ fontSize: '1.5rem' }}></i>
-          Profil şəklini düzəlt
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ 
-            position: 'relative',
-            width: '100%',
-            height: '400px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: darkMode ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.05)',
-          }}>
-            {selectedImage && (
-              <ReactCrop
+        <DialogTitle sx={{ pb: 1 }}>Profil şəklinizi kəsin</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ position: 'relative', height: 300, mb: 3 }}>
+            {selectedFile && (
+              <Crop
+                image={selectedFile}
                 crop={crop}
-                onChange={c => setCrop(c)}
+                zoom={zoom}
                 aspect={1}
-                circularCrop
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                }}
-              >
-                <img
-                  ref={imageRef}
-                  src={selectedImage}
-                  style={{ 
-                    maxWidth: '100%',
-                    maxHeight: '400px',
-                    objectFit: 'contain',
-                  }}
-                  alt="Crop"
-                />
-              </ReactCrop>
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
             )}
           </Box>
-          {cropError && (
-            <Box sx={{ p: 2 }}>
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {cropError}
-              </Alert>
-            </Box>
-          )}
+          <Box sx={{ px: 1 }}>
+            <Typography gutterBottom>Böyütmə</Typography>
+            <Slider
+              value={zoom}
+              min={1}
+              max={3}
+              step={0.1}
+              onChange={(e, newValue) => setZoom(newValue as number)}
+            />
+          </Box>
         </DialogContent>
-        <DialogActions 
-          sx={{ 
-            p: 2,
-            borderTop: 1,
-            borderColor: darkMode 
-              ? 'rgba(255, 255, 255, 0.1)'
-              : 'rgba(0, 0, 0, 0.1)',
-            gap: 1,
-          }}
-        >
-          <Button
-            onClick={() => {
-              setCropDialogOpen(false);
-              setSelectedImage(null);
-              setCropError(null);
-              if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-              }
-            }}
-            variant="outlined"
-            startIcon={<i className='bx bx-x'></i>}
-            sx={{
-              color: 'text.secondary',
-              borderColor: 'divider',
-              '&:hover': {
-                bgcolor: 'action.hover',
-                borderColor: 'text.secondary',
-              },
-            }}
+        <DialogActions>
+          <Button onClick={() => setOpenCropModal(false)}>İmtina</Button>
+          <Button 
+            onClick={uploadCroppedImage} 
+            variant="contained" 
+            disabled={avatarLoading}
           >
-            Ləğv et
-          </Button>
-          <Button
-            onClick={handleCropComplete}
-            variant="contained"
-            disabled={isLoading}
-            startIcon={isLoading ? null : <i className='bx bx-check'></i>}
-            sx={{
-              bgcolor: darkMode ? '#bb86fc' : '#3f51b5',
-              color: 'white',
-              '&:hover': {
-                bgcolor: darkMode ? '#9c27b0' : '#303f9f',
-              },
-            }}
-          >
-            {isLoading ? 'Yüklənir...' : 'Təsdiqlə'}
+            {avatarLoading ? 'Yüklənir...' : 'Şəkli saxla'}
           </Button>
         </DialogActions>
       </Dialog>

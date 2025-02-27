@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import 'boxicons/css/boxicons.min.css';
 import { API_URL } from '../config/api';
+import { authAPI } from '../services/api';
 
 const Login = () => {
   const { login } = useAuth();
@@ -33,6 +34,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
@@ -62,8 +64,15 @@ const Login = () => {
     setError('');
 
     try {
+      console.log('Giriş cəhdi:', {
+        username: formData.username,
+        passwordLength: formData.password.length
+      });
+      
       await login(formData.username, formData.password);
+      console.log('Giriş uğurlu oldu');
     } catch (err: any) {
+      console.error('Giriş xətası:', err);
       setError(err.message);
     }
   };
@@ -71,30 +80,33 @@ const Login = () => {
   const handleForgotPassword = async () => {
     setResetMessage('');
     setResetError('');
+    setResetLoading(true);
+
+    if (!email || !email.trim()) {
+      setResetError('Email ünvanı daxil edilməlidir');
+      setResetLoading(false);
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
-      }
-
-      setResetMessage(data.message);
+      console.log('Şifrə yeniləmə tələbi göndərilir:', { email });
+      
+      const data = await authAPI.forgotPassword(email);
+      
+      setResetMessage(data.message || 'Şifrə yeniləmə linki email ünvanınıza göndərildi');
       setEmail('');
+      
+      console.log('Şifrə yeniləmə tələbi uğurlu oldu');
+      
       setTimeout(() => {
         setForgotPasswordOpen(false);
         setResetMessage('');
       }, 3000);
     } catch (err: any) {
-      setResetError(err.message);
+      console.error('Şifrə yeniləmə tələbi xətası:', err);
+      setResetError(err.message || 'Şifrə yeniləmə tələbi zamanı xəta baş verdi');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -692,6 +704,7 @@ const Login = () => {
           <Button
             onClick={handleForgotPassword}
             variant="contained"
+            disabled={resetLoading}
             sx={{
               textTransform: 'none',
               borderRadius: 2,
@@ -708,7 +721,7 @@ const Login = () => {
               },
             }}
           >
-            Göndər
+            {resetLoading ? 'Göndərilir...' : 'Göndər'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -4,12 +4,12 @@ import {
   Typography,
   Button,
   Box,
-  Avatar,
   Menu,
   MenuItem,
   Divider,
   useTheme,
   alpha,
+  Avatar,
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme as useCustomTheme } from '../context/ThemeContext';
@@ -161,6 +161,7 @@ const Header = () => {
               >
                 <Avatar
                   src={avatar || undefined}
+                  alt={username || 'User'}
                   sx={{
                     bgcolor: darkMode ? '#9c27b0' : '#3f51b5',
                     width: 35,

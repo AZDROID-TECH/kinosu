@@ -5,8 +5,11 @@ interface LoginData {
   password: string;
 }
 
-interface RegisterData extends LoginData {
-  confirmPassword: string;
+interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword?: string;
 }
 
 interface MovieData {
@@ -18,9 +21,16 @@ interface MovieData {
 }
 
 interface UserProfile {
+  id: number;
   username: string;
   email: string;
-  avatar?: string;
+  avatar: string | null;
+  createdAt: string;
+  watchlist: {
+    watchlist: number;
+    watching: number;
+    watched: number;
+  };
 }
 
 const getHeaders = () => {
@@ -31,186 +41,247 @@ const getHeaders = () => {
   };
 };
 
+// Yardımcı hata ayıklama fonksiyonu
+const handleApiResponse = async (response: Response) => {
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type');
+    let errorData = null;
+    
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        errorData = await response.json();
+      } else {
+        errorData = { error: await response.text() || 'Bilinməyən xəta' };
+      }
+    } catch (parseError) {
+      console.error('API yanıt məzmunu təhlil edilərkən xəta:', parseError);
+      errorData = { error: 'Yanıt təhlil edilə bilmədi' };
+    }
+    
+    console.error('API xətası:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorData
+    });
+    
+    throw new Error(errorData.error || 'Bilinməyən xəta');
+  }
+  
+  try {
+    const text = await response.text();
+    if (!text.trim()) {
+      return {}; 
+    }
+    
+    return JSON.parse(text);
+  } catch (parseError) {
+    console.error('API yanıt məzmunu təhlil edilərkən xəta:', parseError);
+    throw new Error('Yanıt təhlil edilə bilmədi');
+  }
+};
+
 export const authAPI = {
   login: async (data: LoginData) => {
-    const response = await fetch(`/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Giriş xətası:', error);
+      throw error;
     }
-    return response.json();
   },
 
   register: async (data: RegisterData) => {
-    const response = await fetch(`/api/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const registerData = {
         username: data.username,
         password: data.password,
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+        email: data.email
+      };
+      
+      const response = await fetch(`/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registerData),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Qeydiyyat xətası:', error);
+      throw error;
     }
-    return response.json();
+  },
+
+  forgotPassword: async (email: string) => {
+    try {
+      const response = await fetch(`/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Şifrə yeniləmə tələbi xətası:', error);
+      throw error;
+    }
+  },
+  
+  resetPassword: async (token: string, newPassword: string) => {
+    try {
+      const response = await fetch(`/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Şifrə yeniləmə xətası:', error);
+      throw error;
+    }
   },
 };
 
 export const userAPI = {
-  getProfile: async () => {
-    const response = await fetch(`/api/user/profile`, {
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+  getProfile: async (): Promise<UserProfile> => {
+    try {
+      const response = await fetch(`/api/user/profile`, {
+        headers: getHeaders(),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Profil məlumatları alınarkən xəta:', error);
+      throw error;
     }
-    return response.json();
   },
 
   updateProfile: async (data: Partial<UserProfile>) => {
-    const response = await fetch(`/api/user/profile`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
-    }
-    return response.json();
-  },
-
-  updateAvatar: async (file: File) => {
-    const formData = new FormData();
-    formData.append('avatar', file);
-
-    const token = localStorage.getItem('token');
-    const url = `/api/user/avatar`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.error(`404 Not Found: ${url} endpoint-i tapılmadı`);
-        throw new Error(`Avatar yüklənmə endpoint-i tapılmadı (404): ${url}`);
-      }
-      
-      try {
-        const error = await response.json();
-        throw new Error(error.error || `Xəta: ${response.status}`);
-      } catch (jsonError) {
-        throw new Error(`Sunucu xətası: ${response.status} ${response.statusText}`);
-      }
-    }
-    
     try {
-      return await response.json();
+      const response = await fetch(`/api/user/profile`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      
+      return await handleApiResponse(response);
     } catch (error) {
-      throw new Error('Cavab JSON formatında deyil');
+      console.error('Profil yeniləmə xətası:', error);
+      throw error;
     }
   },
-
+  
+  uploadAvatar: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`/api/user/avatar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Avatar yükləmə xətası:', error);
+      throw error;
+    }
+  },
+  
   deleteAvatar: async () => {
-    const url = `/api/user/avatar`;
-    
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.error(`404 Not Found: ${url} endpoint-i tapılmadı`);
-        throw new Error(`Avatar silmə endpoint-i tapılmadı (404): ${url}`);
-      }
-      
-      try {
-        const error = await response.json();
-        throw new Error(error.error || `Xəta: ${response.status}`);
-      } catch (jsonError) {
-        throw new Error(`Sunucu xətası: ${response.status} ${response.statusText}`);
-      }
-    }
-    
     try {
-      return await response.json();
+      const response = await fetch(`/api/user/avatar`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      
+      return await handleApiResponse(response);
     } catch (error) {
-      throw new Error('Cavab JSON formatında deyil');
+      console.error('Avatar silmə xətası:', error);
+      throw error;
     }
   },
 };
 
 export const movieAPI = {
   getMovies: async () => {
-    const response = await fetch(`/api/movies`, {
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/movies`, {
+        headers: getHeaders(),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Film siyahısı alınarkən xəta:', error);
+      throw error;
     }
-    return response.json();
   },
 
   searchMovies: async (query: string) => {
-    const response = await fetch(`/api/movies/search/${encodeURIComponent(query)}`, {
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/movies/search/${encodeURIComponent(query)}`, {
+        headers: getHeaders(),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Film axtarışı xətası:', error);
+      throw error;
     }
-    return response.json();
   },
 
   addMovie: async (data: MovieData) => {
-    const response = await fetch(`/api/movies`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/movies`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Film əlavə etmə xətası:', error);
+      throw error;
     }
-    return response.json();
   },
 
   updateMovie: async (id: number, data: Partial<MovieData>) => {
-    const response = await fetch(`/api/movies/${id}`, {
-      method: 'PUT',
-      headers: getHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/movies/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Film yeniləmə xətası:', error);
+      throw error;
     }
-    return response.json();
   },
 
   deleteMovie: async (id: number) => {
-    const response = await fetch(`/api/movies/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error);
+    try {
+      const response = await fetch(`/api/movies/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      
+      return await handleApiResponse(response);
+    } catch (error) {
+      console.error('Film silmə xətası:', error);
+      throw error;
     }
-    return response.json();
   },
 }; 

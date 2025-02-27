@@ -28,14 +28,19 @@ const OMDB_API_KEY = process.env.VITE_OMDB_API_KEY || 'b567a8f1';
 
 export const getMovies = (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
+      console.error('getMovies: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
       return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
     }
 
+    const userId = req.user.userId;
+
     const stmt = db.prepare('SELECT * FROM movies WHERE user_id = ?');
-    const movies = stmt.all(req.user.userId) as Movie[];
+    const movies = stmt.all(userId) as Movie[];
+    
     res.json(movies);
   } catch (error) {
+    console.error('Filmləri gətirərkən xəta:', error);
     res.status(500).json({ error: 'Filmləri gətirərkən xəta baş verdi' });
   }
 };
@@ -67,18 +72,20 @@ export const searchMovies = async (req: Request, res: Response) => {
 
 export const addMovie = (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
+      console.error('addMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
       return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
     }
 
-    const { title, imdb_id, poster, imdb_rating, status } = req.body as Partial<Movie>;
+    const userId = req.user.userId;
+    const { title, imdb_id, poster, imdb_rating, status } = req.body;
 
     const stmt = db.prepare(`
       INSERT INTO movies (user_id, title, imdb_id, poster, imdb_rating, status, user_rating)
       VALUES (?, ?, ?, ?, ?, ?, 0)
     `);
     
-    const result = stmt.run(req.user.userId, title, imdb_id, poster, imdb_rating, status);
+    const result = stmt.run(userId, title, imdb_id, poster, imdb_rating, status);
     res.status(201).json({ id: result.lastInsertRowid });
   } catch (error) {
     res.status(500).json({ error: 'Film əlavə edilərkən xəta baş verdi' });
@@ -87,11 +94,15 @@ export const addMovie = (req: Request, res: Response) => {
 
 export const updateMovie = (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
+      console.error('updateMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
       return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
     }
 
-    const { status, user_rating } = req.body as Partial<Movie>;
+    const userId = req.user.userId;
+    const movieId = req.params.id;
+    const { status, user_rating } = req.body;
+
     let query = 'UPDATE movies SET';
     const params: any[] = [];
 
@@ -106,7 +117,7 @@ export const updateMovie = (req: Request, res: Response) => {
 
     query = query.slice(0, -1);
     query += ' WHERE id = ? AND user_id = ?';
-    params.push(req.params.id, req.user.userId);
+    params.push(movieId, userId);
 
     const stmt = db.prepare(query);
     stmt.run(...params);
@@ -119,12 +130,16 @@ export const updateMovie = (req: Request, res: Response) => {
 
 export const deleteMovie = (req: Request, res: Response) => {
   try {
-    if (!req.user) {
+    if (!req.user || !req.user.userId) {
+      console.error('deleteMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
       return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
     }
 
+    const userId = req.user.userId;
+    const movieId = req.params.id;
+
     const stmt = db.prepare('DELETE FROM movies WHERE id = ? AND user_id = ?');
-    stmt.run(req.params.id, req.user.userId);
+    stmt.run(movieId, userId);
     res.json({ message: 'Film uğurla silindi' });
   } catch (error) {
     res.status(500).json({ error: 'Film silinərkən xəta baş verdi' });

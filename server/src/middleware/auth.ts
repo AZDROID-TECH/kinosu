@@ -1,17 +1,24 @@
 // Autentifikasiya middleware
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
 
 interface JwtPayload {
-  userId: number;
+  id: number;
+  username: string;
 }
 
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayload;
+      user?: {
+        userId: number;
+        username: string;
+      };
     }
   }
 }
@@ -26,9 +33,16 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    req.user = decoded;
+    
+    // Tutarlı yapı için id'yi userId olarak ata
+    req.user = {
+      userId: decoded.id,
+      username: decoded.username
+    };
+    
     next();
   } catch (error) {
+    console.error('Token doğrulama xətası:', error);
     return res.status(403).json({ error: 'Token etibarsızdır' });
   }
 }; 

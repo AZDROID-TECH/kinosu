@@ -9,9 +9,8 @@ interface AuthContextType {
   avatar: string | null;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
-  updateAvatar: (file: File) => Promise<void>;
-  deleteAvatar: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateAvatar: (avatarUrl: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,16 +38,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       const profile = await userAPI.getProfile();
       setEmail(profile.email);
-      
-      // Avatar URL'yi null veya undefined değilse ayarla
-      if (profile.avatar) {
-        setAvatar(profile.avatar);
-      } else {
-        setAvatar(null);
-      }
+      setAvatar(profile.avatar);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Profil məlumatlarını yükləmə xətası:', error);
     }
+  };
+
+  const updateAvatar = (avatarUrl: string | null) => {
+    setAvatar(avatarUrl);
   };
 
   useEffect(() => {
@@ -57,9 +54,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (token && savedUsername) {
       setIsLoggedIn(true);
       setUsername(savedUsername);
-      refreshProfile().catch(err => {
-        console.warn('Failed to load profile on startup:', err);
-      });
+      refreshProfile();
     }
   }, []);
 
@@ -73,7 +68,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await refreshProfile();
     } catch (error) {
-      console.warn('Failed to load profile after login:', error);
+      // Sessiz bir şekilde devam et
     }
     
     navigate('/');
@@ -89,38 +84,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     navigate('/login');
   };
 
-  const updateAvatar = async (file: File) => {
-    try {
-      const response = await userAPI.updateAvatar(file);
-      setAvatar(response.avatar);
-    } catch (error) {
-      console.error('AuthContext updateAvatar error:', error);
-      throw error;
-    }
-  };
-
-  const deleteAvatar = async () => {
-    try {
-      await userAPI.deleteAvatar();
-      setAvatar(null);
-    } catch (error) {
-      console.error('AuthContext deleteAvatar error:', error);
-      throw error;
-    }
-  };
-
   return (
     <AuthContext.Provider 
       value={{ 
         isLoggedIn, 
         username, 
-        email, 
+        email,
         avatar,
         login, 
         logout,
-        updateAvatar,
-        deleteAvatar,
-        refreshProfile
+        refreshProfile,
+        updateAvatar
       }}
     >
       {children}
