@@ -8,18 +8,31 @@ import {
   Menu,
   MenuItem,
   Divider,
+  useTheme,
+  alpha,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTheme as useCustomTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useState } from 'react';
 import 'boxicons/css/boxicons.min.css';
 
+// Ortak stiller
+const commonStyles = {
+  textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+  transition: 'all 0.3s ease',
+};
+
 const Header = () => {
   const navigate = useNavigate();
-  const { darkMode, toggleDarkMode } = useTheme();
-  const { isLoggedIn, username, logout } = useAuth();
+  const location = useLocation();
+  const { darkMode, toggleDarkMode } = useCustomTheme();
+  const { isLoggedIn, username, avatar, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const theme = useTheme();
+
+  // Giriş ve kayıt sayfalarında butonları gizlemek için kontrol
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.includes('/reset-password');
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -35,7 +48,24 @@ const Header = () => {
   };
 
   return (
-    <AppBar position="static" elevation={1}>
+    <AppBar 
+      position="static" 
+      elevation={0}
+      sx={{
+        background: darkMode 
+          ? alpha(theme.palette.background.paper, 0.95)
+          : 'linear-gradient(45deg, #3f51b5 0%, #673ab7 100%)',
+        boxShadow: isAuthPage 
+          ? 'none' 
+          : '0 2px 10px rgba(0, 0, 0, 0.1)',
+        backdropFilter: isAuthPage ? 'blur(10px)' : 'blur(5px)',
+        borderBottom: isAuthPage 
+          ? 'none' 
+          : `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.2)'}`,
+        transition: 'all 0.3s ease-in-out',
+        borderRadius: isAuthPage ? 0 : '0 0 8px 8px',
+      }}
+    >
       <Toolbar>
         <Typography
           variant="h5"
@@ -48,8 +78,11 @@ const Header = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
-            color: (theme) => theme.palette.mode === 'dark' ? 'primary.main' : '#e6e6e6',
+            color: (theme) => isAuthPage 
+              ? (darkMode ? '#fff' : '#fff')
+              : '#fff',
             position: 'relative',
+            ...commonStyles,
           }}
           onClick={() => navigate('/')}
         >
@@ -59,13 +92,22 @@ const Header = () => {
             style={{ 
               width: 36, 
               height: 36,
-              filter: (theme) =>
-                theme.palette.mode === 'dark'
-                  ? 'drop-shadow(0 0 4px rgba(25, 118, 210, 0.6))'
-                  : 'drop-shadow(0 0 4px rgba(25, 118, 210, 0.3))'
+              transition: 'all 0.3s ease'
             }} 
           />
-          <span>
+          <span style={{
+            color: isAuthPage
+              ? '#fff'
+              : darkMode
+                ? '#bb86fc'
+                : '#fff',
+            display: 'inline-block',
+            textShadow: isAuthPage 
+              ? '0 2px 4px rgba(0,0,0,0.3)' 
+              : (darkMode ? '0 2px 4px rgba(0,0,0,0.3)' : '0 2px 4px rgba(0,0,0,0.3)'),
+            fontWeight: 'bold',
+            transition: 'color 0.3s ease',
+          }}>
             Kinosu
           </span>
         </Typography>
@@ -81,10 +123,22 @@ const Header = () => {
               padding: '8px',
               display: 'flex',
               alignItems: 'center',
-              color: 'inherit'
+              color: isAuthPage ? '#fff' : (darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+              transition: 'transform 0.3s ease, color 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.color = darkMode ? '#bb86fc' : '#757de8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.color = isAuthPage ? '#fff' : (darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)');
             }}
           >
-            <i className={`bx ${darkMode ? 'bx-sun' : 'bx-moon'}`} style={{ fontSize: '24px' }}></i>
+            <i className={`bx ${darkMode ? 'bx-sun' : 'bx-moon'}`} style={{ 
+              fontSize: '24px',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+            }}></i>
           </button>
 
           {isLoggedIn ? (
@@ -97,31 +151,34 @@ const Header = () => {
                   cursor: 'pointer',
                   p: 0.5,
                   borderRadius: 2,
-                  transition: 'all 0.2s',
+                  transition: 'all 0.3s ease',
                   '&:hover': {
-                    bgcolor: 'action.hover',
+                    bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    transform: 'translateY(-2px)',
                   },
                 }}
                 onClick={handleMenuOpen}
               >
                 <Avatar
+                  src={avatar || undefined}
                   sx={{
-                    bgcolor: 'primary.main',
+                    bgcolor: darkMode ? '#9c27b0' : '#3f51b5',
                     width: 35,
                     height: 35,
-                    boxShadow: 1,
-                    border: '2px solid',
-                    borderColor: 'background.paper',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    border: '2px solid rgba(255, 255, 255, 0.8)',
+                    transition: 'all 0.3s ease',
                   }}
                 >
-                  {username?.[0].toUpperCase()}
+                  {!avatar && username?.[0].toUpperCase()}
                 </Avatar>
                 <Typography
                   variant="subtitle1"
                   sx={{
                     display: { xs: 'none', sm: 'block' },
                     fontWeight: 600,
-                    color: 'text.primary',
+                    color: isAuthPage ? '#fff' : (darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
+                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
                   }}
                 >
                   {username}
@@ -136,51 +193,122 @@ const Header = () => {
                   sx: {
                     minWidth: '200px',
                     mt: 1.5,
+                    borderRadius: 2,
+                    backdropFilter: 'blur(10px)',
+                    backgroundColor: darkMode 
+                      ? alpha(theme.palette.background.paper, 0.9)
+                      : alpha('#ffffff', 0.9),
+                    border: darkMode 
+                      ? '1px solid rgba(255, 255, 255, 0.1)' 
+                      : '1px solid rgba(0, 0, 0, 0.05)',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s ease',
+                    boxShadow: darkMode
+                      ? '0 8px 32px rgba(0, 0, 0, 0.3)'
+                      : '0 8px 32px rgba(0, 0, 0, 0.1)',
                   },
                 }}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
               >
-                <MenuItem onClick={handleMenuClose}>
-                  <i className='bx bx-user' style={{ marginRight: '8px', fontSize: '20px' }}></i>
+                <MenuItem 
+                  onClick={() => {
+                    handleMenuClose();
+                    navigate('/profile');
+                  }} 
+                  sx={{ 
+                    py: 1.2,
+                    transition: 'all 0.2s ease',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)',
+                    '&:hover': {
+                      backgroundColor: darkMode 
+                        ? alpha('#9c27b0', 0.1)
+                        : alpha('#3f51b5', 0.05),
+                      color: darkMode ? '#bb86fc' : '#3f51b5',
+                    }
+                  }}
+                >
+                  <i className='bx bx-user' style={{ 
+                    marginRight: '8px', 
+                    fontSize: '20px', 
+                    color: darkMode ? '#9c27b0' : '#3f51b5',
+                    transition: 'color 0.2s ease',
+                  }}></i>
                   Profilim
                 </MenuItem>
-                <Divider />
-                <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
-                  <i className='bx bx-log-out' style={{ marginRight: '8px', fontSize: '20px' }}></i>
+                <Divider sx={{ 
+                  my: 0.5,
+                  borderColor: darkMode 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)',
+                }} />
+                <MenuItem onClick={handleLogout} sx={{ 
+                  color: 'error.main',
+                  py: 1.2,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: darkMode 
+                      ? 'rgba(244, 67, 54, 0.08)' 
+                      : 'rgba(244, 67, 54, 0.05)',
+                    color: '#f44336',
+                  }
+                }}>
+                  <i className='bx bx-log-out' style={{ 
+                    marginRight: '8px', 
+                    fontSize: '20px',
+                    transition: 'color 0.2s ease',
+                  }}></i>
                   Çıxış
                 </MenuItem>
               </Menu>
             </>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                color="inherit"
-                variant="outlined"
-                onClick={() => navigate('/login')}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Daxil ol
-              </Button>
-              <Button
-                color="inherit"
-                variant="contained"
-                onClick={() => navigate('/register')}
-                sx={{
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  bgcolor: 'primary.main',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  },
-                }}
-              >
-                Qeydiyyat
-              </Button>
-            </Box>
+            !isAuthPage && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  color="inherit"
+                  variant="outlined"
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderColor: 'rgba(255, 255, 255, 0.7)',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: 'rgba(255, 255, 255, 1)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                      color: '#fff',
+                    }
+                  }}
+                >
+                  Daxil ol
+                </Button>
+                <Button
+                  color="inherit"
+                  variant="contained"
+                  onClick={() => navigate('/register')}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    bgcolor: darkMode ? 'rgba(187, 134, 252, 0.2)' : 'rgba(255, 255, 255, 0.2)',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      bgcolor: darkMode ? 'rgba(187, 134, 252, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                      color: '#fff',
+                    },
+                  }}
+                >
+                  Qeydiyyat
+                </Button>
+              </Box>
+            )
           )}
         </Box>
       </Toolbar>

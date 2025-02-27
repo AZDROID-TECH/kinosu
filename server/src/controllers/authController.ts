@@ -23,13 +23,6 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 
-console.log('Auth Controller - Email Configuration:', {
-  host: SMTP_HOST,
-  port: SMTP_PORT,
-  user: SMTP_USER,
-  pass: SMTP_PASS ? '***' : 'not set'
-});
-
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
@@ -40,12 +33,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Test email connection
-transporter.verify((error, success) => {
+// Email bağlantısını doğrula (sessizce)
+transporter.verify((error) => {
   if (error) {
     console.error('SMTP Connection Error:', error);
-  } else {
-    console.log('SMTP Connection Success:', success);
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -25,39 +25,14 @@ import {
   MenuItem,
   Divider,
   Pagination,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { movieAPI } from '../services/api';
+import { Movie, SearchResult, MovieData } from '../types/movie';
+import { sortMovies, formatDate, getSortLabel } from '../utils/movieHelpers';
 import 'boxicons/css/boxicons.min.css';
-
-interface Movie {
-  id: number;
-  title: string;
-  poster: string;
-  imdb_rating: number;
-  user_rating: number;
-  status: 'watchlist' | 'watching' | 'watched';
-  imdb_id: string;
-  created_at: string;
-}
-
-interface SearchResult {
-  imdbID: string;
-  Title: string;
-  Poster: string;
-  imdbRating: string;
-  Year: string;
-  Genre: string;
-}
-
-interface MovieData {
-  title: string;
-  imdb_id: string;
-  poster: string;
-  imdb_rating: number;
-  status: 'watchlist' | 'watching' | 'watched';
-  user_rating?: number;
-  created_at: string;
-}
 
 const Home = () => {
   const navigate = useNavigate();
@@ -74,6 +49,8 @@ const Home = () => {
   });
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 9;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -85,6 +62,25 @@ const Home = () => {
     fetchMovies();
   }, [navigate]);
 
+  useEffect(() => {
+    const viewportMeta = document.querySelector('meta[name="viewport"]');
+    
+    if (viewportMeta) {
+      viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    } else {
+      const newViewportMeta = document.createElement('meta');
+      newViewportMeta.name = 'viewport';
+      newViewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+      document.head.appendChild(newViewportMeta);
+    }
+    
+    return () => {
+      if (viewportMeta) {
+        viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      }
+    };
+  }, []);
+
   const fetchMovies = async () => {
     try {
       const data = await movieAPI.getMovies();
@@ -92,25 +88,6 @@ const Home = () => {
       setMovies(sortedMovies);
     } catch (error) {
       console.error('Error fetching movies:', error);
-    }
-  };
-
-  const sortMovies = (movies: Movie[], sortType: string) => {
-    switch(sortType) {
-      case 'newest':
-        return movies.sort((a, b) => b.id - a.id);
-      case 'oldest':
-        return movies.sort((a, b) => a.id - b.id);
-      case 'rating_high':
-        return movies.sort((a, b) => (b.imdb_rating || 0) - (a.imdb_rating || 0));
-      case 'rating_low':
-        return movies.sort((a, b) => (a.imdb_rating || 0) - (b.imdb_rating || 0));
-      case 'user_rating_high':
-        return movies.sort((a, b) => (b.user_rating || 0) - (a.user_rating || 0));
-      case 'user_rating_low':
-        return movies.sort((a, b) => (a.user_rating || 0) - (b.user_rating || 0));
-      default:
-        return movies;
     }
   };
 
@@ -136,32 +113,6 @@ const Home = () => {
     );
     setFilteredMovies(filteredMovies);
   }, [localSearchQuery, movies]);
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Tarix məlum deyil';
-      
-      // Bakü saat dilimini ayarla (UTC+4)
-      const bakuDate = new Date(date.getTime() + (4 * 60 * 60 * 1000));
-      
-      const day = bakuDate.getDate();
-      const year = bakuDate.getFullYear();
-      const hours = bakuDate.getHours().toString().padStart(2, '0');
-      const minutes = bakuDate.getMinutes().toString().padStart(2, '0');
-
-      // Azerbaycan ayları
-      const months = [
-        'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun',
-        'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'
-      ];
-      const month = months[bakuDate.getMonth()];
-
-      return `${day} ${month} ${year} - ${hours}:${minutes}`;
-    } catch (error) {
-      return 'Tarix məlum deyil';
-    }
-  };
 
   const handleAddMovie = async (movie: SearchResult) => {
     try {
@@ -244,21 +195,8 @@ const Home = () => {
     handleSortClose();
   };
 
-  const getSortLabel = (value: string) => {
-    switch(value) {
-      case 'newest': return 'Ən yeni əlavə edilən';
-      case 'oldest': return 'Ən əvvəl əlavə edilən';
-      case 'rating_high': return 'IMDb: Yüksəkdən aşağı';
-      case 'rating_low': return 'IMDb: Aşağıdan yüksəyə';
-      case 'user_rating_high': return 'Mənim reytinqim: Yüksəkdən aşağı';
-      case 'user_rating_low': return 'Mənim reytinqim: Aşağıdan yüksəyə';
-      default: return '';
-    }
-  };
-
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Sayfalama için filmleri böl
@@ -636,21 +574,50 @@ const Home = () => {
               />
               <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                 <CardContent sx={{ flex: '1 0 auto', p: 2 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{
-                      fontWeight: 'bold',
-                      mb: 1,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      lineHeight: 1.2,
+                  <Tooltip 
+                    title={movie.title}
+                    placement="top"
+                    enterDelay={isMobile ? 100 : 200}
+                    enterNextDelay={isMobile ? 100 : 200}
+                    enterTouchDelay={0}
+                    leaveTouchDelay={3000}
+                    arrow
+                    PopperProps={{
+                      sx: {
+                        '& .MuiTooltip-tooltip': {
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                          color: theme.palette.mode === 'dark' ? '#fff' : '#000',
+                          boxShadow: theme.palette.mode === 'dark' 
+                            ? '0 4px 8px rgba(0, 0, 0, 0.5)' 
+                            : '0 4px 8px rgba(0, 0, 0, 0.15)',
+                          p: 1,
+                          borderRadius: 1,
+                          fontSize: '0.875rem',
+                          maxWidth: 300,
+                        },
+                        '& .MuiTooltip-arrow': {
+                          color: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                        },
+                      },
                     }}
                   >
-                    {movie.title}
-                  </Typography>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: 'bold',
+                        mb: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 1,
+                        WebkitBoxOrient: 'vertical',
+                        lineHeight: 1.2,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {movie.title}
+                    </Typography>
+                  </Tooltip>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       IMDb:

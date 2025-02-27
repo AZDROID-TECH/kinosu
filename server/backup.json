@@ -1,0 +1,59 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE rate_limits (
+    ip TEXT PRIMARY KEY,
+    requests INTEGER DEFAULT 0,
+    reset_time INTEGER
+  );
+INSERT INTO rate_limits VALUES('::1',32,1740610209562);
+INSERT INTO rate_limits VALUES('::ffff:192.168.100.161',3,1740529632243);
+INSERT INTO rate_limits VALUES('::ffff:192.168.100.165',10,1740607325879);
+INSERT INTO rate_limits VALUES('::ffff:192.168.100.101',1,1740530006802);
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  , email TEXT, reset_token TEXT, reset_token_expiry INTEGER, avatar TEXT);
+INSERT INTO users VALUES(1,'AZDROID','$2a$10$kl3CgtUbwgKkqGo/5Mkoj.7gF.y2Ey/KMub9bYNwZqBy2qPm/7Gci','azdroid.tech@hotmail.com',NULL,NULL,NULL);
+INSERT INTO users VALUES(2,'Deneme3','$2a$10$XGVshj5eMAL4GL8OmQNiU.jRGpMGs.YuTwjOHFRmwChjzgEcug7lK','mirsadiq.555@gmail.com',NULL,NULL,NULL);
+INSERT INTO users VALUES(3,'Deneme','$2a$10$6JAW7XsDnFL1Mg90idjkhOS8VklS5ev5RpnDeBW6m4qvWWLbgvSP2','deneme@mail.ru',NULL,NULL,NULL);
+CREATE TABLE movies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    imdb_id TEXT,
+    poster TEXT,
+    imdb_rating REAL,
+    user_rating INTEGER,
+    status TEXT CHECK(status IN ('watchlist', 'watching', 'watched')) NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+  );
+INSERT INTO movies VALUES(18,1,'Iron Man','tt0371746','https://m.media-amazon.com/images/M/MV5BMTczNTI2ODUwOF5BMl5BanBnXkFtZTcwMTU0NTIzMw@@._V1_SX300.jpg',7.9000000000000003552,5,'watched','2025-02-25 18:24:42');
+INSERT INTO movies VALUES(19,1,'Iron Man 2','tt1228705','https://m.media-amazon.com/images/M/MV5BYWYyOGQzOGYtMGQ1My00ZWYxLTgzZjktZWYzN2IwYjkxYzM0XkEyXkFqcGc@._V1_SX300.jpg',6.9000000000000003552,5,'watched','2025-02-25 18:24:43');
+INSERT INTO movies VALUES(20,1,'Iron Man 3','tt1300854','https://m.media-amazon.com/images/M/MV5BMjIzMzAzMjQyM15BMl5BanBnXkFtZTcwNzM2NjcyOQ@@._V1_SX300.jpg',7.0999999999999996447,0,'watched','2025-02-25 18:24:44');
+INSERT INTO movies VALUES(21,1,'The Avengers','tt0848228','https://m.media-amazon.com/images/M/MV5BNGE0YTVjNzUtNzJjOS00NGNlLTgxMzctZTY4YTE1Y2Y1ZTU4XkEyXkFqcGc@._V1_SX300.jpg',8.0,5,'watched','2025-02-25 18:27:47');
+INSERT INTO movies VALUES(22,1,'Avengers: Endgame','tt4154796','https://m.media-amazon.com/images/M/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_SX300.jpg',8.4000000000000003552,0,'watched','2025-02-25 18:27:48');
+INSERT INTO movies VALUES(25,1,'Avengers: Infinity War','tt4154756','https://m.media-amazon.com/images/M/MV5BMjMxNjY2MDU1OV5BMl5BanBnXkFtZTgwNzY1MTUwNTM@._V1_SX300.jpg',8.4000000000000003552,0,'watched','2025-02-25 18:34:12');
+INSERT INTO movies VALUES(26,1,'Avengers: Age of Ultron','tt2395427','https://m.media-amazon.com/images/M/MV5BODBhYTg1NGQtNGVmNS00ZTdiLThjYTYtZDFkNzRiNTZmNDZjXkEyXkFqcGc@._V1_SX300.jpg',7.2999999999999998223,5,'watched','2025-02-25 18:34:13');
+INSERT INTO movies VALUES(27,1,'Captain America: The First Avenger','tt0458339','https://m.media-amazon.com/images/M/MV5BNzUyM2YyY2MtNzNlMS00MWU5LTgxNjAtNzZlNmI2NjU2NDZlXkEyXkFqcGc@._V1_SX300.jpg',6.9000000000000003552,0,'watched','2025-02-25 18:34:30');
+INSERT INTO movies VALUES(28,1,'Captain America: The Winter Soldier','tt1843866','https://m.media-amazon.com/images/M/MV5BNWY1NjFmNDItZDhmOC00NjI1LWE0ZDItMTM0MjBjZThiOTQ2XkEyXkFqcGc@._V1_SX300.jpg',7.7000000000000001776,0,'watched','2025-02-25 18:34:31');
+INSERT INTO movies VALUES(29,1,'Captain America: Civil War','tt3498820','https://m.media-amazon.com/images/M/MV5BMjQ0MTgyNjAxMV5BMl5BanBnXkFtZTgwNjUzMDkyODE@._V1_SX300.jpg',7.7999999999999998223,0,'watched','2025-02-25 18:34:33');
+INSERT INTO movies VALUES(30,1,'Captain Marvel','tt4154664','https://m.media-amazon.com/images/M/MV5BZDI1NGU2ODAtNzBiNy00MWY5LWIyMGEtZjUxZjUwZmZiNjBlXkEyXkFqcGc@._V1_SX300.jpg',6.7999999999999998223,0,'watched','2025-02-25 21:27:18');
+INSERT INTO movies VALUES(31,1,'Ms. Marvel','tt10857164','https://m.media-amazon.com/images/M/MV5BM2ViOGFkOTItMTkwYS00YWVkLTk0MzMtZDQ3ODdiZWNhMjExXkEyXkFqcGc@._V1_SX300.jpg',6.2000000000000001776,0,'watched','2025-02-25 21:27:21');
+INSERT INTO movies VALUES(32,1,'Under the Dome','tt1553656','https://m.media-amazon.com/images/M/MV5BMjA3NDk0NzM1MF5BMl5BanBnXkFtZTcwOTYxMTk3OQ@@._V1_SX300.jpg',6.5,0,'watched','2025-02-25 21:31:10');
+INSERT INTO movies VALUES(33,1,'The 100','tt2661044','https://m.media-amazon.com/images/M/MV5BNDdmZGYwOWEtN2FkZC00Y2ExLWJkY2UtNzFlODVlNzc3MGIzXkEyXkFqcGc@._V1_SX300.jpg',7.5,0,'watched','2025-02-26 00:18:11');
+INSERT INTO movies VALUES(34,1,'The Ark','tt17371078','https://m.media-amazon.com/images/M/MV5BZWY0ZTVhMzUtMjM3MC00OGZkLWI1OWItZDhjM2FlZWM4MWM0XkEyXkFqcGc@._V1_SX300.jpg',5.5999999999999996447,0,'watching','2025-02-26 00:18:21');
+INSERT INTO movies VALUES(35,1,'Lost in Space','tt5232792','https://m.media-amazon.com/images/M/MV5BMTU1MzAwODM4OF5BMl5BanBnXkFtZTgwMjA4OTY5NDM@._V1_SX300.jpg',7.2999999999999998223,0,'watched','2025-02-26 00:19:07');
+INSERT INTO movies VALUES(36,1,'The Walking Dead','tt1520211','https://m.media-amazon.com/images/M/MV5BYWQwMGRhNGEtZTNhMy00MzVjLWJhMjItYjcwMDljMTkyNTg2XkEyXkFqcGc@._V1_SX300.jpg',8.0999999999999996447,0,'watching','2025-02-26 00:19:21');
+INSERT INTO movies VALUES(37,1,'Fallout','tt12637874','https://m.media-amazon.com/images/M/MV5BNjI5ZmZkNDktZDliMS00ZjlmLWE2MTUtMWVlZjU2YWQ3ZDYxXkEyXkFqcGc@._V1_SX300.jpg',8.3000000000000007105,0,'watching','2025-02-26 00:19:34');
+INSERT INTO movies VALUES(38,1,'Mr. Robot','tt4158110','https://m.media-amazon.com/images/M/MV5BOTg4NTBiZDAtZTc0YS00NzZlLTg4Y2ItNGQ3M2ZlMDM5MWQzXkEyXkFqcGc@._V1_SX300.jpg',8.5,4,'watched','2025-02-26 00:23:14');
+INSERT INTO movies VALUES(39,1,'Elite','tt7134908','https://m.media-amazon.com/images/M/MV5BOTViZmMyNGUtZDhiMy00NGIxLTgzNzEtZmRhYjA4Y2E3NjIwXkEyXkFqcGc@._V1_SX300.jpg',7.2000000000000001776,0,'watching','2025-02-26 00:23:41');
+INSERT INTO movies VALUES(40,1,'Batman v Superman: Dawn of Justice (Ultimate Edition)','tt18689424','https://m.media-amazon.com/images/M/MV5BOTRlNWQwM2ItNjkyZC00MGI3LThkYjktZmE5N2FlMzcyNTIyXkEyXkFqcGdeQXVyMTEyNzgwMDUw._V1_SX300.jpg',7.2000000000000001776,5,'watched','2025-02-26 14:11:42');
+INSERT INTO movies VALUES(41,1,'Lost','tt0411008','https://m.media-amazon.com/images/M/MV5BZmZhY2ViYzYtMTQ0NS00NDcyLWIxZTYtMGUyODE0NDA0NmNkXkEyXkFqcGc@._V1_SX300.jpg',8.3000000000000007105,0,'watchlist','2025-02-26 21:36:33');
+INSERT INTO movies VALUES(42,1,'Extraction','tt8936646','https://m.media-amazon.com/images/M/MV5BNDBhMmI3OWYtZTA2Ny00Y2RjLTliMWQtYWY5MGIwN2RlZGFjXkEyXkFqcGc@._V1_SX300.jpg',6.7999999999999998223,5,'watched','2025-02-26 21:45:50');
+INSERT INTO movies VALUES(43,1,'Extraction II','tt12263384','https://m.media-amazon.com/images/M/MV5BZGQwNDdhODAtY2Y0Ni00YzFhLTk1OGUtY2RkMDAzNzBmZjAxXkEyXkFqcGc@._V1_SX300.jpg',7.0,5,'watched','2025-02-26 21:45:51');
+DELETE FROM sqlite_sequence;
+INSERT INTO sqlite_sequence VALUES('users',3);
+INSERT INTO sqlite_sequence VALUES('movies',44);
+COMMIT;

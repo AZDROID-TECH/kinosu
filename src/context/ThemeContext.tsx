@@ -38,13 +38,93 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     palette: {
       mode: darkMode ? 'dark' : 'light',
       primary: {
-        main: '#2196f3',
-        light: '#64b5f6',
-        dark: '#1976d2',
+        main: '#3f51b5', // Indigo
+        light: '#757de8',
+        dark: '#002984',
+      },
+      secondary: {
+        main: '#9c27b0', // Purple
+        light: '#d05ce3',
+        dark: '#6a0080',
+      },
+      info: {
+        main: '#673ab7', // Deep Purple
+        light: '#9a67ea',
+        dark: '#320b86',
       },
       background: {
         default: darkMode ? '#121212' : '#f5f5f5',
         paper: darkMode ? '#1e1e1e' : '#ffffff',
+      },
+      text: {
+        primary: darkMode ? '#ffffff' : 'rgba(0, 0, 0, 0.87)',
+        secondary: darkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+      },
+    },
+    typography: {
+      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+      h1: {
+        fontWeight: 500,
+      },
+      h2: {
+        fontWeight: 500,
+      },
+      h3: {
+        fontWeight: 500,
+      },
+      h4: {
+        fontWeight: 500,
+      },
+      h5: {
+        fontWeight: 500,
+      },
+      h6: {
+        fontWeight: 500,
+      },
+      button: {
+        textTransform: 'none',
+        fontWeight: 500,
+      },
+    },
+    components: {
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            boxShadow: 'none',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+            },
+          },
+          containedPrimary: {
+            background: darkMode
+              ? 'linear-gradient(45deg, #9c27b0 0%, #673ab7 100%)'
+              : 'linear-gradient(45deg, #3f51b5 0%, #673ab7 100%)',
+            '&:hover': {
+              background: darkMode
+                ? 'linear-gradient(45deg, #9c27b0 30%, #673ab7 90%)'
+                : 'linear-gradient(45deg, #3f51b5 30%, #673ab7 90%)',
+            },
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 8,
+            },
+          },
+        },
       },
     },
   });

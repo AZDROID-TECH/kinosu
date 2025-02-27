@@ -17,6 +17,12 @@ interface MovieData {
   status: 'watchlist' | 'watching' | 'watched';
 }
 
+interface UserProfile {
+  username: string;
+  email: string;
+  avatar?: string;
+}
+
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -27,7 +33,7 @@ const getHeaders = () => {
 
 export const authAPI = {
   login: async (data: LoginData) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -40,7 +46,7 @@ export const authAPI = {
   },
 
   register: async (data: RegisterData) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,9 +62,100 @@ export const authAPI = {
   },
 };
 
+export const userAPI = {
+  getProfile: async () => {
+    const response = await fetch(`/api/user/profile`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+    return response.json();
+  },
+
+  updateProfile: async (data: Partial<UserProfile>) => {
+    const response = await fetch(`/api/user/profile`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error);
+    }
+    return response.json();
+  },
+
+  updateAvatar: async (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const token = localStorage.getItem('token');
+    const url = `/api/user/avatar`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.error(`404 Not Found: ${url} endpoint-i tapılmadı`);
+        throw new Error(`Avatar yüklənmə endpoint-i tapılmadı (404): ${url}`);
+      }
+      
+      try {
+        const error = await response.json();
+        throw new Error(error.error || `Xəta: ${response.status}`);
+      } catch (jsonError) {
+        throw new Error(`Sunucu xətası: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    try {
+      return await response.json();
+    } catch (error) {
+      throw new Error('Cavab JSON formatında deyil');
+    }
+  },
+
+  deleteAvatar: async () => {
+    const url = `/api/user/avatar`;
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.error(`404 Not Found: ${url} endpoint-i tapılmadı`);
+        throw new Error(`Avatar silmə endpoint-i tapılmadı (404): ${url}`);
+      }
+      
+      try {
+        const error = await response.json();
+        throw new Error(error.error || `Xəta: ${response.status}`);
+      } catch (jsonError) {
+        throw new Error(`Sunucu xətası: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    try {
+      return await response.json();
+    } catch (error) {
+      throw new Error('Cavab JSON formatında deyil');
+    }
+  },
+};
+
 export const movieAPI = {
   getMovies: async () => {
-    const response = await fetch(`${API_URL}/movies`, {
+    const response = await fetch(`/api/movies`, {
       headers: getHeaders(),
     });
     if (!response.ok) {
@@ -69,7 +166,7 @@ export const movieAPI = {
   },
 
   searchMovies: async (query: string) => {
-    const response = await fetch(`${API_URL}/movies/search/${encodeURIComponent(query)}`, {
+    const response = await fetch(`/api/movies/search/${encodeURIComponent(query)}`, {
       headers: getHeaders(),
     });
     if (!response.ok) {
@@ -80,7 +177,7 @@ export const movieAPI = {
   },
 
   addMovie: async (data: MovieData) => {
-    const response = await fetch(`${API_URL}/movies`, {
+    const response = await fetch(`/api/movies`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data),
@@ -93,7 +190,7 @@ export const movieAPI = {
   },
 
   updateMovie: async (id: number, data: Partial<MovieData>) => {
-    const response = await fetch(`${API_URL}/movies/${id}`, {
+    const response = await fetch(`/api/movies/${id}`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify(data),
@@ -106,7 +203,7 @@ export const movieAPI = {
   },
 
   deleteMovie: async (id: number) => {
-    const response = await fetch(`${API_URL}/movies/${id}`, {
+    const response = await fetch(`/api/movies/${id}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
