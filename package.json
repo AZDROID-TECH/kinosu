@@ -5,9 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "cd server && npm run dev",
+    "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "tsc && vite build",
+    "build:server": "npm run build && npm run copy:dist",
+    "copy:dist": "node scripts/copy-dist.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "cd server && npm run serve",
+    "build:full": "npm run build:server && cd server && npm run build",
+    "serve": "cd server && npm run serve"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
@@ -16,6 +23,7 @@
     "@mui/material": "^5.15.10",
     "axios": "^1.6.7",
     "boxicons": "^2.1.4",
+    "concurrently": "^8.2.2",
     "dayjs": "^1.11.13",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "serve": "npm run build && node dist/index.js",
+    "build:full": "cd .. && npm run build:server && cd server && npm run build"
   },
   "dependencies": {
     "@types/nodemailer": "^6.4.17",

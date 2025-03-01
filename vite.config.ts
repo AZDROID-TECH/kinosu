@@ -6,8 +6,8 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// API URL'sini tanımlayalım
-const API_URL = 'http://localhost:5000';
+// API URL'sini tanımlayalım - development için localhost proxy, production için relative path
+const API_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
 
 export default defineConfig({
   plugins: [react()],
@@ -46,5 +46,10 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src'),
     },
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    emptyOutDir: true,
   },
 }); 

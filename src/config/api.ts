@@ -1,7 +1,7 @@
 // API yapılandırması
 const getServerUrl = () => {
-  // Development ortamında tüm istekler proxy üzerinden gideceği için base URL kullan
-  // Bu sayede prefix'ler tam olarak dönüştürülecek
+  // Production ortamında API base URL boş bırakılabilir çünkü API ve frontend aynı sunucuda çalışacak
+  // Development ortamında proxy kullanıldığından yine boş string yeterlidir
   return '';
 };
 

@@ -84,10 +84,27 @@ app.use(express_1.default.json());
 app.use(rateLimiter_1.rateLimiter);
 // Static dosya sunucusu
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
-// Routes
+// API Routes
 app.use('/api/auth', auth_1.default);
 app.use('/api/movies', movies_1.default);
 app.use('/api/user', user_1.default);
+// Frontend statik dosyalarını sunma - dağıtım klasörü
+const distPath = path_1.default.join(__dirname, '../../dist');
+// Frontend build dosyalarını sunmak için statik middleware
+if (fs_1.default.existsSync(distPath)) {
+    console.log('Frontend statik dosyaları bulundu, sunuluyor:', distPath);
+    app.use(express_1.default.static(distPath));
+    // SPA için tüm diğer istekleri index.html'e yönlendir
+    app.get('*', (req, res) => {
+        // API isteklerini hariç tut
+        if (!req.path.startsWith('/api/') && !req.path.startsWith('/uploads/')) {
+            res.sendFile(path_1.default.join(distPath, 'index.html'));
+        }
+    });
+}
+else {
+    console.log('Frontend build dosyaları bulunamadı:', distPath);
+}
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server ${PORT} portunda işləyir`);
