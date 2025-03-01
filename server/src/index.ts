@@ -69,23 +69,13 @@ db.exec(`
   );
 `);
 
-// CORS parametrləri
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'];
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // İzin verilen kökenleri kontrol et
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS policy violation'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
+// CORS konfigürasyonu
+app.use(cors({
+  origin: [
+    'https://your-frontend-app.onrender.com', 
+    'http://localhost:3000'
+  ]
+}));
 
 app.use(express.json());
 app.use(rateLimiter);
@@ -119,7 +109,7 @@ if (fs.existsSync(distPath)) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server ${PORT} portunda işləyir`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 // Tətbiq bağlandıqda yedəkləmə
