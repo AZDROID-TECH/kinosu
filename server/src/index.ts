@@ -14,10 +14,16 @@ import fs from 'fs';
 dotenv.config();
 
 const app = express();
-const db = new Database('kinosu.db');
+const dbPath = process.env.NODE_ENV === 'production' 
+  ? '/tmp/kinosu.db'
+  : path.join(__dirname, '../kinosu.db');
 
-// Uploads klasörünü oluştur (yoksa)
-const uploadsDir = path.join(__dirname, '../uploads');
+const db = new Database(dbPath);
+
+// Uploads klasörünü de /tmp altına alalım (production için)
+const uploadsDir = process.env.NODE_ENV === 'production'
+  ? '/tmp/uploads'
+  : path.join(__dirname, '../uploads');
 const tempDir = path.join(__dirname, '../uploads/temp');
 const avatarsDir = path.join(__dirname, '../uploads/avatars');
 
@@ -72,9 +78,11 @@ db.exec(`
 // CORS konfigürasyonu
 app.use(cors({
   origin: [
-    'https://your-frontend-app.onrender.com', 
-    'http://localhost:3000'
-  ]
+    'https://kinosu.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true
 }));
 
 app.use(express.json());
