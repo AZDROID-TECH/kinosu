@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import { TABLES, getClient } from '../utils/supabase';
 
 // .env faylını yüklə
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -21,7 +21,6 @@ interface WatchlistRecord {
   count: number;
 }
 
-const db = new Database('kinosu.db');
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/avatars');
 
 // Avatarlar klasörünü oluştur (yoksa)
@@ -30,10 +29,18 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 }
 
 // Kullanılmayan avatarları temizle
-const cleanupUnusedAvatars = () => {
+const cleanupUnusedAvatars = async () => {
   try {
     // Veritabanında kayıtlı tüm avatar dosyalarını al
-    const avatars = db.prepare('SELECT avatar FROM users WHERE avatar IS NOT NULL').all() as { avatar: string }[];
+    const { data: avatars, error } = await getClient()
+      .from(TABLES.USERS)
+      .select('avatar')
+      .not('avatar', 'is', null);
+    
+    if (error) {
+      console.error('Avatar sorğusunda xəta:', error);
+      return;
+    }
     
     // Dosya sistemindeki tüm avatar dosyalarını al
     const files = fs.readdirSync(UPLOADS_DIR);
@@ -60,41 +67,58 @@ export const getProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     
-    // Önce users tablosunda created_at sütunu var mı kontrol et
-    const tableInfoStmt = db.prepare("PRAGMA table_info(users)");
-    const columns = tableInfoStmt.all() as {name: string}[];
+    // Kullanıcı bilgilerini Supabase'den çek
+    const { data: user, error: userError } = await getClient()
+      .from(TABLES.USERS)
+      .select('id, username, email, avatar, created_at')
+      .eq('id', userId)
+      .single();
     
-    let query = `
-      SELECT id, username, email, avatar
-      FROM users 
-      WHERE id = ?
-    `;
-    
-    // created_at sütunu varsa sorguya ekle
-    if (columns.some(col => col.name === 'created_at')) {
-      query = `
-        SELECT id, username, email, avatar, created_at 
-        FROM users 
-        WHERE id = ?
-      `;
+    if (userError) {
+      console.error('İstifadəçi sorğu xətası:', userError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
     }
-    
-    const stmt = db.prepare(query);
-    const user = stmt.get(userId) as UserRecord | undefined;
     
     if (!user) {
       return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
     }
     
-    // İzleme listesini getir
-    const watchlistStmt = db.prepare(`
-      SELECT status, COUNT(*) as count 
-      FROM movies 
-      WHERE user_id = ? 
-      GROUP BY status
-    `);
+    // İzleme listesi istatistiklerini al
+    // Watchlist (İzleme Listesi)
+    const { count: watchlistCount, error: watchlistError } = await getClient()
+      .from(TABLES.MOVIES)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'watchlist');
     
-    const watchlistStats = watchlistStmt.all(userId) as WatchlistRecord[];
+    if (watchlistError) {
+      console.error('Watchlist sorğu xətası:', watchlistError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
+    
+    // Watching (İzleniyor)
+    const { count: watchingCount, error: watchingError } = await getClient()
+      .from(TABLES.MOVIES)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'watching');
+    
+    if (watchingError) {
+      console.error('Watching sorğu xətası:', watchingError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
+    
+    // Watched (İzlendi)
+    const { count: watchedCount, error: watchedError } = await getClient()
+      .from(TABLES.MOVIES)
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'watched');
+    
+    if (watchedError) {
+      console.error('Watched sorğu xətası:', watchedError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
     
     // created_at yoksa şu anki zamanı kullan
     const createdAt = user.created_at || new Date().toISOString();
@@ -106,9 +130,9 @@ export const getProfile = async (req: Request, res: Response) => {
       avatar: user.avatar,
       createdAt: createdAt,
       watchlist: {
-        watchlist: watchlistStats.find((s) => s.status === 'watchlist')?.count || 0,
-        watching: watchlistStats.find((s) => s.status === 'watching')?.count || 0,
-        watched: watchlistStats.find((s) => s.status === 'watched')?.count || 0
+        watchlist: watchlistCount || 0,
+        watching: watchingCount || 0,
+        watched: watchedCount || 0
       }
     });
   } catch (error) {
@@ -127,8 +151,16 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     }
     
     // Kullanıcıyı bul
-    const userStmt = db.prepare('SELECT avatar, username FROM users WHERE id = ?');
-    const user = userStmt.get(userId) as { avatar: string | null, username: string } | undefined;
+    const { data: user, error: userError } = await getClient()
+      .from(TABLES.USERS)
+      .select('avatar, username')
+      .eq('id', userId)
+      .single();
+    
+    if (userError) {
+      console.error('İstifadəçi sorğu xətası:', userError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
     
     if (!user) {
       return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
@@ -157,8 +189,15 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     fs.renameSync(req.file.path, avatarPath);
     
     // Veritabanını güncelle
-    const updateStmt = db.prepare('UPDATE users SET avatar = ? WHERE id = ?');
-    updateStmt.run(`/uploads/avatars/${filename}`, userId);
+    const { error: updateError } = await getClient()
+      .from(TABLES.USERS)
+      .update({ avatar: `/uploads/avatars/${filename}` })
+      .eq('id', userId);
+    
+    if (updateError) {
+      console.error('Avatar yeniləmə xətası:', updateError);
+      return res.status(500).json({ error: 'Avatar yeniləmə zamanı xəta baş verdi' });
+    }
     
     res.json({ 
       success: true, 
@@ -176,8 +215,16 @@ export const deleteAvatar = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     
     // Kullanıcıyı bul
-    const userStmt = db.prepare('SELECT avatar FROM users WHERE id = ?');
-    const user = userStmt.get(userId) as { avatar: string | null } | undefined;
+    const { data: user, error: userError } = await getClient()
+      .from(TABLES.USERS)
+      .select('avatar')
+      .eq('id', userId)
+      .single();
+    
+    if (userError) {
+      console.error('İstifadəçi sorğu xətası:', userError);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
     
     if (!user) {
       return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
@@ -191,8 +238,15 @@ export const deleteAvatar = async (req: Request, res: Response) => {
       }
       
       // Veritabanını güncelle
-      const updateStmt = db.prepare('UPDATE users SET avatar = NULL WHERE id = ?');
-      updateStmt.run(userId);
+      const { error: updateError } = await getClient()
+        .from(TABLES.USERS)
+        .update({ avatar: null })
+        .eq('id', userId);
+      
+      if (updateError) {
+        console.error('Avatar silmə xətası:', updateError);
+        return res.status(500).json({ error: 'Avatar silmə zamanı xəta baş verdi' });
+      }
       
       res.json({ success: true });
     } else {

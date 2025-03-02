@@ -48,9 +48,9 @@ npm install
 
 3. .env faylını yaradın:
 ```env
-VITE_API_URL=http://localhost:5000
 VITE_OMDB_API_KEY=your_omdb_api_key
 JWT_SECRET=your_jwt_secret
+PORT=5000
 ```
 
 4. Tətbiqi işə salın:

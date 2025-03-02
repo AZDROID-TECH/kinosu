@@ -1,4 +1,4 @@
-import { API_URL } from '../config/api';
+// Kullanılmayan API_URL kaldırıldı - backend ve frontend tek sunucuda çalıştığı için tüm API çağrıları göreceli URL kullanıyor
 
 interface LoginData {
   username: string;
@@ -45,13 +45,21 @@ const getHeaders = () => {
 const handleApiResponse = async (response: Response) => {
   if (!response.ok) {
     const contentType = response.headers.get('content-type');
-    let errorData = null;
+    let errorData: { error: string } = { error: 'Bilinməyən xəta' };
     
     try {
       if (contentType && contentType.includes('application/json')) {
-        errorData = await response.json();
+        const jsonData = await response.json();
+        if (typeof jsonData.error === 'string') {
+          errorData = jsonData;
+        } else if (jsonData.message) {
+          errorData = { error: jsonData.message };
+        } else {
+          errorData = { error: 'API xətası' };
+        }
       } else {
-        errorData = { error: await response.text() || 'Bilinməyən xəta' };
+        const responseText = await response.text();
+        errorData = { error: responseText || 'Bilinməyən xəta' };
       }
     } catch (parseError) {
       console.error('API yanıt məzmunu təhlil edilərkən xəta:', parseError);
@@ -64,7 +72,7 @@ const handleApiResponse = async (response: Response) => {
       errorData
     });
     
-    throw new Error(errorData.error || 'Bilinməyən xəta');
+    throw new Error(errorData.error);
   }
   
   try {

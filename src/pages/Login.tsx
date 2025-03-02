@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -19,7 +19,6 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import 'boxicons/css/boxicons.min.css';
-import { API_URL } from '../config/api';
 import { authAPI } from '../services/api';
 
 const Login = () => {

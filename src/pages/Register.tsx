@@ -14,7 +14,7 @@ import {
   alpha,
 } from '@mui/material';
 import 'boxicons/css/boxicons.min.css';
-import { API_URL } from '../config/api';
+import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 
 const Register = () => {

@@ -6,17 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetPassword = exports.forgotPassword = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const emailTemplates_1 = require("../templates/emailTemplates");
+const supabase_1 = require("../utils/supabase");
 // .env faylını yüklə
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
 // Email doğrulama için regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const db = new better_sqlite3_1.default('kinosu.db');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
@@ -49,16 +48,33 @@ const register = async (req, res) => {
             return res.status(400).json({ error: 'Düzgün e-poçt ünvanı daxil edin' });
         }
         // Kullanıcı zaten mevcut mu?
-        const stmt = db.prepare('SELECT * FROM users WHERE username = ? OR email = ?');
-        const existingUser = stmt.get(username, email);
+        const { data: existingUser, error: checkError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .select('*')
+            .or(`username.eq.${username},email.eq.${email}`)
+            .maybeSingle();
+        if (checkError) {
+            console.error('İstifadəçi yoxlama xətası:', checkError);
+            return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+        }
         if (existingUser) {
             return res.status(409).json({ error: 'İstifadəçi adı və ya e-poçt artıq istifadə olunur' });
         }
         // Şifreyi hashle
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         // Kullanıcıyı oluştur
-        const insertStmt = db.prepare('INSERT INTO users (username, password, email) VALUES (?, ?, ?)');
-        const result = insertStmt.run(username, hashedPassword, email || null);
+        const { error: insertError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .insert({
+            username,
+            password: hashedPassword,
+            email: email || null,
+            created_at: new Date().toISOString()
+        });
+        if (insertError) {
+            console.error('İstifadəçi yaratma xətası:', insertError);
+            return res.status(500).json({ error: 'İstifadəçi yaratma zamanı xəta baş verdi' });
+        }
         res.status(201).json({ message: 'İstifadəçi uğurla qeydiyyatdan keçdi' });
     }
     catch (error) {
@@ -75,8 +91,15 @@ const login = async (req, res) => {
             return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
         }
         // Kullanıcıyı bul
-        const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-        const user = stmt.get(username);
+        const { data: user, error: userError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .select('*')
+            .eq('username', username)
+            .maybeSingle();
+        if (userError) {
+            console.error('İstifadəçi sorğu xətası:', userError);
+            return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+        }
         if (!user) {
             return res.status(401).json({ error: 'Yanlış istifadəçi adı və ya şifrə' });
         }
@@ -101,15 +124,31 @@ const forgotPassword = async (req, res) => {
         return res.status(400).json({ error: 'Email ünvanı daxil edilməlidir' });
     }
     try {
-        const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-        const user = stmt.get(email);
+        const { data: user, error: userError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
+        if (userError) {
+            console.error('İstifadəçi sorğu xətası:', userError);
+            return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+        }
         if (!user) {
             return res.status(404).json({ error: 'Bu email ünvanına aid istifadəçi tapılmadı' });
         }
         const resetToken = crypto_1.default.randomBytes(32).toString('hex');
         const resetTokenExpiry = Date.now() + 3600000; // 1 saat
-        const updateStmt = db.prepare('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?');
-        updateStmt.run(resetToken, resetTokenExpiry, email);
+        const { error: updateError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .update({
+            reset_token: resetToken,
+            reset_token_expiry: resetTokenExpiry
+        })
+            .eq('email', email);
+        if (updateError) {
+            console.error('Token yeniləmə xətası:', updateError);
+            return res.status(500).json({ error: 'Token yeniləmə zamanı xəta baş verdi' });
+        }
         // Yeni oluşturduğumuz şablon fonksiyonunu kullanıyoruz
         const emailHtml = (0, emailTemplates_1.getPasswordResetTemplate)(resetToken, user.username);
         await transporter.sendMail({
@@ -140,14 +179,33 @@ const resetPassword = async (req, res) => {
         return res.status(400).json({ error: 'Token və yeni şifrə tələb olunur' });
     }
     try {
-        const stmt = db.prepare('SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > ?');
-        const user = stmt.get(token, Date.now());
+        const currentTime = Date.now();
+        const { data: user, error: userError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .select('*')
+            .eq('reset_token', token)
+            .gt('reset_token_expiry', currentTime)
+            .maybeSingle();
+        if (userError) {
+            console.error('Token sorğu xətası:', userError);
+            return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+        }
         if (!user) {
             return res.status(400).json({ error: 'Etibarsız və ya vaxtı keçmiş token' });
         }
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
-        const updateStmt = db.prepare('UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?');
-        updateStmt.run(hashedPassword, user.id);
+        const { error: updateError } = await supabase_1.supabase
+            .from(supabase_1.TABLES.USERS)
+            .update({
+            password: hashedPassword,
+            reset_token: null,
+            reset_token_expiry: null
+        })
+            .eq('id', user.id);
+        if (updateError) {
+            console.error('Şifrə yeniləmə xətası:', updateError);
+            return res.status(500).json({ error: 'Şifrə yeniləmə zamanı xəta baş verdi' });
+        }
         res.json({ message: 'Şifrəniz uğurla yeniləndi' });
     }
     catch (error) {

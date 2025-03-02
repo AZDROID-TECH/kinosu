@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import Database from 'better-sqlite3';
 import axios from 'axios';
+import { TABLES, getClient } from '../utils/supabase';
 
 interface Movie {
   id: number;
@@ -23,10 +23,9 @@ interface IMDbMovie {
   Genre: string;
 }
 
-const db = new Database('kinosu.db');
 const OMDB_API_KEY = process.env.VITE_OMDB_API_KEY || 'b567a8f1';
 
-export const getMovies = (req: Request, res: Response) => {
+export const getMovies = async (req: Request, res: Response) => {
   try {
     if (!req.user || !req.user.userId) {
       console.error('getMovies: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
@@ -34,9 +33,17 @@ export const getMovies = (req: Request, res: Response) => {
     }
 
     const userId = req.user.userId;
+    const client = getClient();
 
-    const stmt = db.prepare('SELECT * FROM movies WHERE user_id = ?');
-    const movies = stmt.all(userId) as Movie[];
+    const { data: movies, error } = await client
+      .from(TABLES.MOVIES)
+      .select('*')
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Supabase sorğu xətası:', error);
+      return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+    }
     
     res.json(movies);
   } catch (error) {
@@ -70,7 +77,7 @@ export const searchMovies = async (req: Request, res: Response) => {
   }
 };
 
-export const addMovie = (req: Request, res: Response) => {
+export const addMovie = async (req: Request, res: Response) => {
   try {
     if (!req.user || !req.user.userId) {
       console.error('addMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
@@ -79,20 +86,34 @@ export const addMovie = (req: Request, res: Response) => {
 
     const userId = req.user.userId;
     const { title, imdb_id, poster, imdb_rating, status } = req.body;
+    const client = getClient();
 
-    const stmt = db.prepare(`
-      INSERT INTO movies (user_id, title, imdb_id, poster, imdb_rating, status, user_rating)
-      VALUES (?, ?, ?, ?, ?, ?, 0)
-    `);
+    const { data, error } = await client
+      .from(TABLES.MOVIES)
+      .insert({
+        user_id: userId,
+        title,
+        imdb_id,
+        poster,
+        imdb_rating,
+        status,
+        user_rating: 0
+      })
+      .select()
+      .single();
     
-    const result = stmt.run(userId, title, imdb_id, poster, imdb_rating, status);
-    res.status(201).json({ id: result.lastInsertRowid });
+    if (error) {
+      console.error('Film əlavə edərkən Supabase xətası:', error);
+      return res.status(500).json({ error: 'Film əlavə edilərkən xəta baş verdi' });
+    }
+    
+    res.status(201).json({ id: data.id });
   } catch (error) {
     res.status(500).json({ error: 'Film əlavə edilərkən xəta baş verdi' });
   }
 };
 
-export const updateMovie = (req: Request, res: Response) => {
+export const updateMovie = async (req: Request, res: Response) => {
   try {
     if (!req.user || !req.user.userId) {
       console.error('updateMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
@@ -102,25 +123,28 @@ export const updateMovie = (req: Request, res: Response) => {
     const userId = req.user.userId;
     const movieId = req.params.id;
     const { status, user_rating } = req.body;
+    const client = getClient();
 
-    let query = 'UPDATE movies SET';
-    const params: any[] = [];
-
+    const updateData: any = {};
+    
     if (status !== undefined) {
-      query += ' status = ?,';
-      params.push(status);
+      updateData.status = status;
     }
+    
     if (user_rating !== undefined) {
-      query += ' user_rating = ?,';
-      params.push(user_rating);
+      updateData.user_rating = user_rating;
     }
 
-    query = query.slice(0, -1);
-    query += ' WHERE id = ? AND user_id = ?';
-    params.push(movieId, userId);
-
-    const stmt = db.prepare(query);
-    stmt.run(...params);
+    const { error } = await client
+      .from(TABLES.MOVIES)
+      .update(updateData)
+      .eq('id', movieId)
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Film yeniləmə Supabase xətası:', error);
+      return res.status(500).json({ error: 'Film yeniləmə zamanı xəta baş verdi' });
+    }
     
     res.json({ message: 'Film uğurla yeniləndi' });
   } catch (error) {
@@ -128,7 +152,7 @@ export const updateMovie = (req: Request, res: Response) => {
   }
 };
 
-export const deleteMovie = (req: Request, res: Response) => {
+export const deleteMovie = async (req: Request, res: Response) => {
   try {
     if (!req.user || !req.user.userId) {
       console.error('deleteMovie: İstifadəçi kimliyi yok veya geçersiz', { user: req.user });
@@ -137,9 +161,19 @@ export const deleteMovie = (req: Request, res: Response) => {
 
     const userId = req.user.userId;
     const movieId = req.params.id;
+    const client = getClient();
 
-    const stmt = db.prepare('DELETE FROM movies WHERE id = ? AND user_id = ?');
-    stmt.run(movieId, userId);
+    const { error } = await client
+      .from(TABLES.MOVIES)
+      .delete()
+      .eq('id', movieId)
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Film silmə Supabase xətası:', error);
+      return res.status(500).json({ error: 'Film silinərkən xəta baş verdi' });
+    }
+    
     res.json({ message: 'Film uğurla silindi' });
   } catch (error) {
     res.status(500).json({ error: 'Film silinərkən xəta baş verdi' });
