@@ -239,9 +239,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
-  const { token, password } = req.body;
+  const { token, newPassword } = req.body;
 
-  if (!token || !password) {
+  if (!token || !newPassword) {
     return res.status(400).json({ error: 'Token və yeni şifrə tələb olunur' });
   }
 
@@ -267,7 +267,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user with new password and remove reset token
     const { error: updateError } = await client
