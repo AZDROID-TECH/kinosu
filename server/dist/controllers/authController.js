@@ -48,14 +48,31 @@ const register = async (req, res) => {
             return res.status(400).json({ error: 'Düzgün e-poçt ünvanı daxil edin' });
         }
         // Kullanıcı zaten mevcut mu?
-        const { data: existingUser, error: checkError } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        let query = client
             .from(supabase_1.TABLES.USERS)
-            .select('*')
-            .or(`username.eq.${username},email.eq.${email}`)
+            .select('*');
+        // Kullanıcı adı kontrolü
+        const { data: existingUserByName, error: nameCheckError } = await query
+            .eq('username', username)
             .maybeSingle();
-        if (checkError) {
-            console.error('İstifadəçi yoxlama xətası:', checkError);
+        if (nameCheckError) {
+            console.error('İstifadəçi adı yoxlama xətası:', nameCheckError);
             return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+        }
+        // Email varsa ve kullanıcı adı bulunamadıysa, email kontrolü yap
+        let existingUser = existingUserByName;
+        if (!existingUser && email) {
+            const { data: existingUserByEmail, error: emailCheckError } = await client
+                .from(supabase_1.TABLES.USERS)
+                .select('*')
+                .eq('email', email)
+                .maybeSingle();
+            if (emailCheckError) {
+                console.error('E-poçt yoxlama xətası:', emailCheckError);
+                return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
+            }
+            existingUser = existingUserByEmail;
         }
         if (existingUser) {
             return res.status(409).json({ error: 'İstifadəçi adı və ya e-poçt artıq istifadə olunur' });
@@ -63,7 +80,8 @@ const register = async (req, res) => {
         // Şifreyi hashle
         const hashedPassword = await bcryptjs_1.default.hash(password, 10);
         // Kullanıcıyı oluştur
-        const { error: insertError } = await supabase_1.supabase
+        console.log('İstifadəçi yaratmağa çalışıram:', { username, email, hashedPassword: '[GİZLİ]' });
+        const { error: insertError } = await client
             .from(supabase_1.TABLES.USERS)
             .insert({
             username,
@@ -72,7 +90,7 @@ const register = async (req, res) => {
             created_at: new Date().toISOString()
         });
         if (insertError) {
-            console.error('İstifadəçi yaratma xətası:', insertError);
+            console.error('İstifadəçi yaratma xətası (detaylı):', JSON.stringify(insertError));
             return res.status(500).json({ error: 'İstifadəçi yaratma zamanı xəta baş verdi' });
         }
         res.status(201).json({ message: 'İstifadəçi uğurla qeydiyyatdan keçdi' });
@@ -91,7 +109,8 @@ const login = async (req, res) => {
             return res.status(400).json({ error: 'İstifadəçi adı və şifrə tələb olunur' });
         }
         // Kullanıcıyı bul
-        const { data: user, error: userError } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const { data: user, error: userError } = await client
             .from(supabase_1.TABLES.USERS)
             .select('*')
             .eq('username', username)
@@ -124,7 +143,8 @@ const forgotPassword = async (req, res) => {
         return res.status(400).json({ error: 'Email ünvanı daxil edilməlidir' });
     }
     try {
-        const { data: user, error: userError } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const { data: user, error: userError } = await client
             .from(supabase_1.TABLES.USERS)
             .select('*')
             .eq('email', email)
@@ -136,18 +156,20 @@ const forgotPassword = async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'Bu email ünvanına aid istifadəçi tapılmadı' });
         }
-        const resetToken = crypto_1.default.randomBytes(32).toString('hex');
-        const resetTokenExpiry = Date.now() + 3600000; // 1 saat
-        const { error: updateError } = await supabase_1.supabase
+        // Generate a token
+        const resetToken = crypto_1.default.randomBytes(20).toString('hex');
+        const resetTokenExpiry = Date.now() + 3600000; // 1 hour
+        // Update user with reset token
+        const { error: updateError } = await client
             .from(supabase_1.TABLES.USERS)
             .update({
             reset_token: resetToken,
             reset_token_expiry: resetTokenExpiry
         })
-            .eq('email', email);
+            .eq('id', user.id);
         if (updateError) {
             console.error('Token yeniləmə xətası:', updateError);
-            return res.status(500).json({ error: 'Token yeniləmə zamanı xəta baş verdi' });
+            return res.status(500).json({ error: 'Şifrə sıfırlama token\'i yaradılarkən xəta baş verdi' });
         }
         // Yeni oluşturduğumuz şablon fonksiyonunu kullanıyoruz
         const emailHtml = (0, emailTemplates_1.getPasswordResetTemplate)(resetToken, user.username);
@@ -179,22 +201,26 @@ const resetPassword = async (req, res) => {
         return res.status(400).json({ error: 'Token və yeni şifrə tələb olunur' });
     }
     try {
-        const currentTime = Date.now();
-        const { data: user, error: userError } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const now = Date.now();
+        // Find user with valid reset token
+        const { data: user, error: userError } = await client
             .from(supabase_1.TABLES.USERS)
             .select('*')
             .eq('reset_token', token)
-            .gt('reset_token_expiry', currentTime)
+            .gt('reset_token_expiry', now)
             .maybeSingle();
         if (userError) {
-            console.error('Token sorğu xətası:', userError);
+            console.error('İstifadəçi axtarma xətası:', userError);
             return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
         }
         if (!user) {
             return res.status(400).json({ error: 'Etibarsız və ya vaxtı keçmiş token' });
         }
+        // Hash new password
         const hashedPassword = await bcryptjs_1.default.hash(newPassword, 10);
-        const { error: updateError } = await supabase_1.supabase
+        // Update user with new password and remove reset token
+        const { error: updateError } = await client
             .from(supabase_1.TABLES.USERS)
             .update({
             password: hashedPassword,
@@ -206,11 +232,11 @@ const resetPassword = async (req, res) => {
             console.error('Şifrə yeniləmə xətası:', updateError);
             return res.status(500).json({ error: 'Şifrə yeniləmə zamanı xəta baş verdi' });
         }
-        res.json({ message: 'Şifrəniz uğurla yeniləndi' });
+        res.json({ message: 'Şifrə uğurla yeniləndi' });
     }
     catch (error) {
-        console.error('Şifrə yeniləmə xətası:', error);
-        res.status(500).json({ error: 'Şifrə yeniləmə zamanı xəta baş verdi' });
+        console.error('Şifrə sıfırlama xətası:', error);
+        res.status(500).json({ error: 'Server xətası baş verdi' });
     }
 };
 exports.resetPassword = resetPassword;

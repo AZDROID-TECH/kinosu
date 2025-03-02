@@ -20,7 +20,7 @@ if (!fs_1.default.existsSync(UPLOADS_DIR)) {
 const cleanupUnusedAvatars = async () => {
     try {
         // Veritabanında kayıtlı tüm avatar dosyalarını al
-        const { data: avatars, error } = await supabase_1.supabase
+        const { data: avatars, error } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .select('avatar')
             .not('avatar', 'is', null);
@@ -50,7 +50,7 @@ const getProfile = async (req, res) => {
     try {
         const userId = req.user?.userId;
         // Kullanıcı bilgilerini Supabase'den çek
-        const { data: user, error: userError } = await supabase_1.supabase
+        const { data: user, error: userError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .select('id, username, email, avatar, created_at')
             .eq('id', userId)
@@ -64,7 +64,7 @@ const getProfile = async (req, res) => {
         }
         // İzleme listesi istatistiklerini al
         // Watchlist (İzleme Listesi)
-        const { count: watchlistCount, error: watchlistError } = await supabase_1.supabase
+        const { count: watchlistCount, error: watchlistError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.MOVIES)
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
@@ -74,7 +74,7 @@ const getProfile = async (req, res) => {
             return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
         }
         // Watching (İzleniyor)
-        const { count: watchingCount, error: watchingError } = await supabase_1.supabase
+        const { count: watchingCount, error: watchingError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.MOVIES)
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
@@ -84,7 +84,7 @@ const getProfile = async (req, res) => {
             return res.status(500).json({ error: 'Verilənlər bazası sorğusunda xəta baş verdi' });
         }
         // Watched (İzlendi)
-        const { count: watchedCount, error: watchedError } = await supabase_1.supabase
+        const { count: watchedCount, error: watchedError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.MOVIES)
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
@@ -122,7 +122,7 @@ const uploadAvatar = async (req, res) => {
             return res.status(400).json({ error: 'Şəkil yüklənmədi' });
         }
         // Kullanıcıyı bul
-        const { data: user, error: userError } = await supabase_1.supabase
+        const { data: user, error: userError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .select('avatar, username')
             .eq('id', userId)
@@ -152,7 +152,7 @@ const uploadAvatar = async (req, res) => {
         // Dosyayı taşı
         fs_1.default.renameSync(req.file.path, avatarPath);
         // Veritabanını güncelle
-        const { error: updateError } = await supabase_1.supabase
+        const { error: updateError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .update({ avatar: `/uploads/avatars/${filename}` })
             .eq('id', userId);
@@ -176,7 +176,7 @@ const deleteAvatar = async (req, res) => {
     try {
         const userId = req.user?.userId;
         // Kullanıcıyı bul
-        const { data: user, error: userError } = await supabase_1.supabase
+        const { data: user, error: userError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .select('avatar')
             .eq('id', userId)
@@ -195,7 +195,7 @@ const deleteAvatar = async (req, res) => {
                 fs_1.default.unlinkSync(avatarPath);
             }
             // Veritabanını güncelle
-            const { error: updateError } = await supabase_1.supabase
+            const { error: updateError } = await (0, supabase_1.getClient)()
                 .from(supabase_1.TABLES.USERS)
                 .update({ avatar: null })
                 .eq('id', userId);

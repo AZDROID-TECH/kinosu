@@ -14,7 +14,8 @@ const getMovies = async (req, res) => {
             return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
         }
         const userId = req.user.userId;
-        const { data: movies, error } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const { data: movies, error } = await client
             .from(supabase_1.TABLES.MOVIES)
             .select('*')
             .eq('user_id', userId);
@@ -62,7 +63,8 @@ const addMovie = async (req, res) => {
         }
         const userId = req.user.userId;
         const { title, imdb_id, poster, imdb_rating, status } = req.body;
-        const { data, error } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const { data, error } = await client
             .from(supabase_1.TABLES.MOVIES)
             .insert({
             user_id: userId,
@@ -95,6 +97,7 @@ const updateMovie = async (req, res) => {
         const userId = req.user.userId;
         const movieId = req.params.id;
         const { status, user_rating } = req.body;
+        const client = (0, supabase_1.getClient)();
         const updateData = {};
         if (status !== undefined) {
             updateData.status = status;
@@ -102,7 +105,7 @@ const updateMovie = async (req, res) => {
         if (user_rating !== undefined) {
             updateData.user_rating = user_rating;
         }
-        const { error } = await supabase_1.supabase
+        const { error } = await client
             .from(supabase_1.TABLES.MOVIES)
             .update(updateData)
             .eq('id', movieId)
@@ -126,7 +129,8 @@ const deleteMovie = async (req, res) => {
         }
         const userId = req.user.userId;
         const movieId = req.params.id;
-        const { error } = await supabase_1.supabase
+        const client = (0, supabase_1.getClient)();
+        const { error } = await client
             .from(supabase_1.TABLES.MOVIES)
             .delete()
             .eq('id', movieId)

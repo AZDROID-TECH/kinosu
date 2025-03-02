@@ -7,7 +7,7 @@ exports.getWelcomeTemplate = exports.getPasswordResetTemplate = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000';
 /**
  * Şifrə yeniləmə emaili üçün HTML şablonu
  *

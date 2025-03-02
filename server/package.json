@@ -4,10 +4,10 @@
   "description": "Kinosu backend server",
   "main": "src/index.ts",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts",
+    "start": "NODE_OPTIONS='--no-deprecation' node dist/index.js",
+    "dev": "NODE_OPTIONS='--no-deprecation' nodemon src/index.ts",
     "build": "tsc",
-    "serve": "npm run build && node dist/index.js",
+    "serve": "npm run build && NODE_OPTIONS='--no-deprecation' node dist/index.js",
     "build:full": "cd .. && npm run build:server && cd server && npm run build"
   },
   "dependencies": {

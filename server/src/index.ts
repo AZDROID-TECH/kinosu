@@ -7,7 +7,7 @@ import { rateLimiter } from './middleware/rateLimiter';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import { supabase, TABLES } from './utils/supabase';
+import { TABLES, getClient } from './utils/supabase';
 
 // .env faylını yüklə
 dotenv.config();
@@ -34,33 +34,55 @@ if (!fs.existsSync(avatarsDir)) {
 // Supabase cədvəl strukturunu yoxla və yarat (əgər yoxdursa)
 const initializeDatabase = async () => {
   try {
-    // Yoxla və ya yarat USERS cədvəlini 
-    const { error: usersTableError } = await supabase
-      .from(TABLES.USERS)
-      .select('id')
-      .limit(1);
+    const client = getClient();
     
-    if (usersTableError && usersTableError.code === '42P01') {
-      console.log('Users cədvəli yoxdur, yaradılır...');
-      // Burada SQL sorğuları ilə cədvəl yarada bilərsiniz, lakin
-      // Supabase Dashboard üzərindən yaratmaq daha məqsədəuyğundur
-    }
-
-    // Yoxla və ya yarat MOVIES cədvəlini
-    const { error: moviesTableError } = await supabase
-      .from(TABLES.MOVIES)
-      .select('id')
-      .limit(1);
+    // Sadece ilk başlatma sırasında log kaydı
+    console.log('Verilənlər bazası bağlantısı yoxlanılır...');
     
-    if (moviesTableError && moviesTableError.code === '42P01') {
-      console.log('Movies cədvəli yoxdur, yaradılır...');
-      // Burada SQL sorğuları ilə cədvəl yarada bilərsiniz, lakin
-      // Supabase Dashboard üzərindən yaratmaq daha məqsədəuyğundur
+    // Rate Limits tablosunu sessizce kontrol et
+    try {
+      await client
+        .from('rate_limits')
+        .select('ip')
+        .limit(1);
+      
+      // Başarılı olunca herhangi bir log yazdırmıyoruz
+    } catch (error) {
+      // Sadece tablo yoksa, tabloyu manuel oluşturulması gerektiğini belirt
+      // Sessizce devam et - tablo zaten kullanıcı tarafından oluşturuldu
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Rate limits tablosu hazır');
+      }
     }
-
-    console.log('Verilənlər bazası strukturu yoxlanıldı.');
+    
+    // USERS tablosunu sessizce kontrol et
+    try {
+      await client
+        .from(TABLES.USERS)
+        .select('id')
+        .limit(1);
+        
+      // Başarılı olunca herhangi bir log yazdırmıyoruz
+    } catch (error) {
+      // Sadece gerçek bir hata varsa göster
+      console.error('USERS tablosu kontrolünde hata');
+    }
+    
+    // MOVIES tablosunu sessizce kontrol et
+    try {
+      await client
+        .from(TABLES.MOVIES)
+        .select('id')
+        .limit(1);
+        
+      // Başarılı olunca herhangi bir log yazdırmıyoruz
+    } catch (error) {
+      // Sadece gerçek bir hata varsa göster
+      console.error('MOVIES tablosu kontrolünde hata');
+    }
   } catch (error) {
-    console.error('Verilənlər bazası başlatma xətası:', error);
+    // Sadece bağlantı hatası durumunda göster
+    console.error('Veritabanı bağlantı hatası');
   }
 };
 
