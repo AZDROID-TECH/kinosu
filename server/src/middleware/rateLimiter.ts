@@ -8,8 +8,8 @@ interface RateLimit {
 }
 
 // Rate limiter sabitlerini tanımla
-const WINDOW_SIZE = 15 * 60 * 1000; // 15 dakika
-const MAX_REQUESTS = 100; // 15 dakikada maksimum 100 istek
+const WINDOW_SIZE = 5 * 60 * 1000; // 5 dakika
+const MAX_REQUESTS = 500; // 5 dakikada maksimum 500 istek
 
 export const rateLimiter = async (req: Request, res: Response, next: NextFunction) => {
   const ip = req.ip;

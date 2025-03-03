@@ -1,5 +1,16 @@
 // Kullanılmayan API_URL kaldırıldı - backend ve frontend tek sunucuda çalıştığı için tüm API çağrıları göreceli URL kullanıyor
 
+// API URL alma yardımcı fonksiyonu
+const getApiBaseUrl = () => {
+  // Render.com veya başka bir ortamda deploy edildiğinde VITE_API_URL kullanılır
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Geliştirme ortamında göreceli URL kullanılır
+  return "";
+};
+
 interface LoginData {
   username: string;
   password: string;
@@ -91,7 +102,7 @@ const handleApiResponse = async (response: Response) => {
 export const authAPI = {
   login: async (data: LoginData) => {
     try {
-      const response = await fetch(`/api/auth/login`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -112,7 +123,7 @@ export const authAPI = {
         email: data.email
       };
       
-      const response = await fetch(`/api/auth/register`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registerData),
@@ -127,7 +138,7 @@ export const authAPI = {
 
   forgotPassword: async (email: string) => {
     try {
-      const response = await fetch(`/api/auth/forgot-password`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -142,7 +153,7 @@ export const authAPI = {
   
   resetPassword: async (token: string, newPassword: string) => {
     try {
-      const response = await fetch(`/api/auth/reset-password`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),
@@ -159,7 +170,7 @@ export const authAPI = {
 export const userAPI = {
   getProfile: async (): Promise<UserProfile> => {
     try {
-      const response = await fetch(`/api/user/profile`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/user/profile`, {
         headers: getHeaders(),
       });
       
@@ -172,7 +183,7 @@ export const userAPI = {
 
   updateProfile: async (data: Partial<UserProfile>) => {
     try {
-      const response = await fetch(`/api/user/profile`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/user/profile`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -192,7 +203,7 @@ export const userAPI = {
       
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`/api/user/avatar`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/user/avatar`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -209,7 +220,7 @@ export const userAPI = {
   
   deleteAvatar: async () => {
     try {
-      const response = await fetch(`/api/user/avatar`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/user/avatar`, {
         method: 'DELETE',
         headers: getHeaders(),
       });
@@ -225,7 +236,7 @@ export const userAPI = {
 export const movieAPI = {
   getMovies: async () => {
     try {
-      const response = await fetch(`/api/movies`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/movies`, {
         headers: getHeaders(),
       });
       
@@ -238,7 +249,7 @@ export const movieAPI = {
 
   searchMovies: async (query: string) => {
     try {
-      const response = await fetch(`/api/movies/search/${encodeURIComponent(query)}`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/movies/search/${encodeURIComponent(query)}`, {
         headers: getHeaders(),
       });
       
@@ -251,7 +262,7 @@ export const movieAPI = {
 
   addMovie: async (data: MovieData) => {
     try {
-      const response = await fetch(`/api/movies`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/movies`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -266,7 +277,7 @@ export const movieAPI = {
 
   updateMovie: async (id: number, data: Partial<MovieData>) => {
     try {
-      const response = await fetch(`/api/movies/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/movies/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data),
@@ -281,7 +292,7 @@ export const movieAPI = {
 
   deleteMovie: async (id: number) => {
     try {
-      const response = await fetch(`/api/movies/${id}`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/movies/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       });

@@ -24,45 +24,66 @@ Kinosu, film həvəskarları üçün hazırlanmış müasir və istifadəçi dos
 
 - **Backend:**
   - Node.js + Express
-  - SQLite
+  - Supabase
   - JWT Authentication
   - RESTful API
 
-## 📦 Quraşdırma
+## 🌐 Canlı Versiya
 
-1. Repozitroniyanı klonlayın:
-```bash
-git clone https://github.com/yourusername/kinosu.git
-cd kinosu
-```
+Kinosu'nun canlı versiyasına aşağıdakı ünvandan daxil ola bilərsiniz:
 
-2. Asılılıqları quraşdırın:
-```bash
-# Frontend asılılıqları
-npm install
+- [kinosu.onrender.com](https://kinosu.onrender.com)
 
-# Backend asılılıqları
-cd server
-npm install
-```
+## 👤 İstifadəçilər üçün İstifadə Təlimatı
 
-3. .env faylını yaradın:
-```env
-VITE_OMDB_API_KEY=your_omdb_api_key
-JWT_SECRET=your_jwt_secret
-PORT=5000
-```
+### Qeydiyyat və Giriş
 
-4. Tətbiqi işə salın:
-```bash
-# Backend serverini işə salın
-cd server
-npm run dev
+- Ana səhifədəki "Qeydiyyatdan keç" düyməsindən istifadə edərək yeni hesab yaradın
+- Mövcud hesabınızla "Daxil ol" düyməsindən istifadə edərək sistemə giriş edin
+- Şifrənizi unutduğunuz təqdirdə "Şifrəni unutdum" seçimi ilə bərpa edə bilərsiniz
 
-# Yeni terminal pəncərəsində frontend-i işə salın
-cd ..
-npm run dev
-```
+### Film İdarəetməsi
+
+- "Film axtar" bölməsindən yeni filmləri tapa bilərsiniz
+- Hər film üçün statusu təyin edə bilərsiniz:
+  - **İzləmək istəyirəm**: Gələcəkdə izləmək istədiyiniz filmlər
+  - **İzləyirəm**: Hazırda izlədiyiniz filmlər
+  - **İzlədim**: Artıq izlədiyiniz filmlər
+- Filmləri şəxsi reytinqlə qiymətləndirə bilərsiniz (1-10 arası)
+
+### Profil İdarəetməsi
+
+- Profil bölməsindən şəxsi məlumatlarınızı redaktə edə bilərsiniz
+- Profil şəkilinizi yükləyə və ya dəyişdirə bilərsiniz
+- Parolu dəyişmək üçün təhlükəsizlik ayarlarını istifadə edə bilərsiniz
+
+## 🏢 HR Mütəxəssisləri üçün Əlavə Məlumatlar
+
+### Layihə Haqqında
+
+Kinosu, müasir veb texnologiyaları ilə yaradılmış tam funksional film idarəetmə platformasıdır. Bu layihə, aşağıdakı texniki bacarıqları nümayiş etdirir:
+
+- Tam stack veb tətbiq inkişafı (React/TypeScript və Node.js/Express)
+- Müasir UI/UX dizayn prinsipləri və tətbiqi
+- Üçüncü tərəf API-lər ilə inteqrasiya (OMDb)
+- Bulud əsaslı verilənlər bazası həlləri (Supabase)
+- Təhlükəsiz autentifikasiya və avtorizasiya
+- Responsiv və adaptiv dizayn
+
+### Texniki Nailiyyətlər
+
+- SPA (Single Page Application) arxitekturası ilə sürətli və axıcı istifadəçi təcrübəsi
+- Modular və genişləndirilə bilən kod strukturu
+- JWT ilə təhlükəsiz istifadəçi sessiyası idarəetməsi
+- RESTful API dizaynı və tətbiqi
+- Bulud platforma üzərində deployment və CI/CD prosesi
+
+### İnkişaf Perspektivləri
+
+- Sosial şəbəkə inteqrasiyası və dostlar ilə film tövsiyələrini paylaşma
+- Avtomatik film tövsiyə sistemi
+- Daha geniş statistika və analitika funksiyaları
+- Mobil versiya üçün native tətbiq inkişafı
 
 ## 📸 Ekran Görüntüləri
 
@@ -87,7 +108,6 @@ MIT License - daha ətraflı məlumat üçün [LICENSE](LICENSE) faylına baxın
 - [OMDb API](http://www.omdbapi.com/) - Film məlumatları üçün
 - [Material-UI](https://mui.com/) - UI komponentləri üçün
 - [BoxIcons](https://boxicons.com/) - İkonlar üçün
-
----
+- [Supabase](https://supabase.com/) - Verilənlər bazası xidməti üçün
 
 ⭐ Bu layihəni bəyəndinizsə, ulduz verməyi unutmayın! 
