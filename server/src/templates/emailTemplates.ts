@@ -3,7 +3,8 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000';
+// Render.com için varsayılan olarak prodüksiyon URL'sini kullanıyoruz
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kinosu.onrender.com';
 
 /**
  * Şifrə yeniləmə emaili üçün HTML şablonu

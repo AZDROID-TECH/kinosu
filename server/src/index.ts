@@ -90,7 +90,12 @@ const initializeDatabase = async () => {
 initializeDatabase();
 
 // CORS parametrləri
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+  'http://localhost:3000', 
+  'http://localhost:5173',
+  'https://kinosu.onrender.com',
+  'https://kinosu-backend.onrender.com'
+];
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // İzin verilen kökenleri kontrol et
