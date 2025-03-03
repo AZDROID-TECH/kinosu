@@ -116,7 +116,8 @@ initializeDatabase();
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://kinosu.azdroid.tech'
+    'https://kinosu.azdroid.tech',
+    'https://kinosu-backend.onrender.com'
 ];
 const corsOptions = {
     origin: (origin, callback) => {
@@ -125,6 +126,7 @@ const corsOptions = {
             callback(null, true);
         }
         else {
+            console.log('CORS rədd edildi:', origin);
             callback(new Error('CORS policy violation'));
         }
     },

@@ -7,8 +7,8 @@ exports.getWelcomeTemplate = exports.getPasswordResetTemplate = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
-// Render.com için varsayılan olarak prodüksiyon URL'sini kullanıyoruz
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kinosu.azdroid.tech';
+// Frontend URL - Şifrə sıfırlama bağlantıları üçün istifadə olunur
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kinosu-backend.onrender.com';
 /**
  * Şifrə yeniləmə emaili üçün HTML şablonu
  *
