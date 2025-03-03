@@ -2,12 +2,18 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import dotenv from 'dotenv';
+
+// .env dosyasını yükleyelim
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Port değerini .env dosyasından alalım
+const PORT = process.env.PORT || 3000;
 // Development için proxy API URL'si tanımlayalım
-const DEV_API_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000';
+const DEV_API_URL = process.env.NODE_ENV === 'production' ? '' : `http://localhost:${PORT}`;
 
 export default defineConfig({
   plugins: [react()],

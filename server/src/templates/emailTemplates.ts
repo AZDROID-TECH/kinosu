@@ -3,7 +3,8 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000';
+const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${PORT}`;
 
 /**
  * Şifrə yeniləmə emaili üçün HTML şablonu
