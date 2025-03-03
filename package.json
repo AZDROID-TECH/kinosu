@@ -11,8 +11,6 @@
     "build:server": "npm run build && npm run copy:dist",
     "copy:dist": "node scripts/copy-dist.mjs",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "start": "cd server && npm run serve",
     "build:full": "npm run build:server && cd server && npm run build",
     "serve": "cd server && npm run serve"
   },

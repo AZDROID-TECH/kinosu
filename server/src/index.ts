@@ -36,76 +36,45 @@ const initializeDatabase = async () => {
   try {
     const client = getClient();
     
-    // Sadece ilk başlatma sırasında log kaydı
-    console.log('Verilənlər bazası bağlantısı yoxlanılır...');
-    
-    // Rate Limits tablosunu sessizce kontrol et
+    // Rate Limits tablosunu kontrol et
     try {
       await client
         .from('rate_limits')
         .select('ip')
         .limit(1);
-      
-      // Başarılı olunca herhangi bir log yazdırmıyoruz
     } catch (error) {
-      // Sadece tablo yoksa, tabloyu manuel oluşturulması gerektiğini belirt
-      // Sessizce devam et - tablo zaten kullanıcı tarafından oluşturuldu
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Rate limits tablosu hazır');
-      }
+      // Sessizce devam et
     }
     
-    // USERS tablosunu sessizce kontrol et
+    // USERS tablosunu kontrol et
     try {
       await client
         .from(TABLES.USERS)
         .select('id')
         .limit(1);
-        
-      // Başarılı olunca herhangi bir log yazdırmıyoruz
     } catch (error) {
-      // Sadece gerçek bir hata varsa göster
-      console.error('USERS tablosu kontrolünde hata');
+      // Sessizce devam et
     }
     
-    // MOVIES tablosunu sessizce kontrol et
+    // MOVIES tablosunu kontrol et
     try {
       await client
         .from(TABLES.MOVIES)
         .select('id')
         .limit(1);
-        
-      // Başarılı olunca herhangi bir log yazdırmıyoruz
     } catch (error) {
-      // Sadece gerçek bir hata varsa göster
-      console.error('MOVIES tablosu kontrolünde hata');
+      // Sessizce devam et
     }
   } catch (error) {
-    // Sadece bağlantı hatası durumunda göster
-    console.error('Veritabanı bağlantı hatası');
+    // Sessizce devam et
   }
 };
 
 // Verilənlər bazası strukturunu yoxla
 initializeDatabase();
 
-// CORS parametrləri
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'];
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // İzin verilen kökenleri kontrol et
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS policy violation'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
+// Basit CORS yapılandırması - frontend ve backend aynı domainde çalıştığı için minimalist
+app.use(cors());
 
 app.use(express.json());
 app.use(rateLimiter);
@@ -123,7 +92,6 @@ const distPath = path.join(__dirname, '../public');
 
 // Frontend build dosyalarını sunmak için statik middleware
 if (fs.existsSync(distPath)) {
-  console.log('Frontend statik dosyaları bulundu, sunuluyor:', distPath);
   app.use(express.static(distPath));
   
   // SPA için tüm diğer istekleri index.html'e yönlendir
@@ -134,18 +102,13 @@ if (fs.existsSync(distPath)) {
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        console.log('Frontend index.html dosyası bulunamadı:', indexPath);
         res.status(404).send('Frontend dosyaları bulunamadı');
       }
     }
   });
-} else {
-  console.log('Frontend build dosyaları bulunamadı:', distPath);
 }
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server ${PORT} portunda işləyir`);
-});
-
-// Yeni verilənlər bazasında yedəkləməyə ehtiyac olmadığı üçün, bu hissələri siliyoruz 
+}); 
