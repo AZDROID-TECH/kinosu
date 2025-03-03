@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.rateLimiter = void 0;
 const supabase_1 = require("../utils/supabase");
 // Rate limiter sabitlerini tanımla
-const WINDOW_SIZE = 15 * 60 * 1000; // 15 dakika
-const MAX_REQUESTS = 100; // 15 dakikada maksimum 100 istek
+const WINDOW_SIZE = 5 * 60 * 1000; // 5 dakika
+const MAX_REQUESTS = 500; // 5 dakikada maksimum 500 istek
 const rateLimiter = async (req, res, next) => {
     const ip = req.ip;
     const now = Date.now();

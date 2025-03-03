@@ -11,36 +11,49 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const supabase_1 = require("../utils/supabase");
 // .env faylını yüklə
 dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
+// Uploads için klasör yolları
 const UPLOADS_DIR = path_1.default.join(__dirname, '../../uploads/avatars');
-// Avatarlar klasörünü oluştur (yoksa)
-if (!fs_1.default.existsSync(UPLOADS_DIR)) {
-    fs_1.default.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-// Kullanılmayan avatarları temizle
+const TEMP_DIR = path_1.default.join(__dirname, '../../uploads/temp');
+// Avatar temizleme işlemini optimize edelim
 const cleanupUnusedAvatars = async () => {
     try {
-        // Veritabanında kayıtlı tüm avatar dosyalarını al
-        const { data: avatars, error } = await (0, supabase_1.getClient)()
+        // Bu işlev sadece development modunda çalışsın
+        if (process.env.NODE_ENV !== 'development')
+            return;
+        if (!fs_1.default.existsSync(UPLOADS_DIR)) {
+            fs_1.default.mkdirSync(UPLOADS_DIR, { recursive: true });
+            return;
+        }
+        // Veritabanında kullanılan tüm avatarları al
+        const { data: users, error } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
             .select('avatar')
             .not('avatar', 'is', null);
         if (error) {
-            console.error('Avatar sorğusunda xəta:', error);
+            console.error('Avatar temizleme sorğusunda xəta:', error);
             return;
         }
-        // Dosya sistemindeki tüm avatar dosyalarını al
+        // Veritabanındaki avatar dosya adlarını çıkar
+        const dbAvatars = users
+            .filter(user => user.avatar)
+            .map(user => path_1.default.basename(user.avatar));
+        // Dosya sistemindeki tüm avatarları kontrol et
         const files = fs_1.default.readdirSync(UPLOADS_DIR);
-        // Veritabanında olmayan dosyaları bul ve sil
+        // Kullanılmayan dosyaları bul ve sil
         for (const file of files) {
-            // Sadece dosya adını karşılaştır, yolu hariç
-            const isUsed = avatars.some(a => a.avatar && path_1.default.basename(a.avatar) === file);
-            if (!isUsed) {
-                fs_1.default.unlinkSync(path_1.default.join(UPLOADS_DIR, file));
+            if (!dbAvatars.includes(file) && !file.startsWith('.')) {
+                try {
+                    fs_1.default.unlinkSync(path_1.default.join(UPLOADS_DIR, file));
+                    console.log(`İstifadə edilməyən avatar silindi: ${file}`);
+                }
+                catch (err) {
+                    console.error(`Avatar silinərkən xəta: ${file}`, err);
+                }
             }
         }
     }
-    catch (error) {
-        console.error('Temizleme prosesində xəta:', error);
+    catch (err) {
+        console.error('Avatar temizleme prosesində xəta:', err);
     }
 };
 // Her 24 saatte bir temizlik yap
@@ -121,6 +134,10 @@ const uploadAvatar = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ error: 'Şəkil yüklənmədi' });
         }
+        // Avatar klasörünün var olduğundan emin ol
+        if (!fs_1.default.existsSync(UPLOADS_DIR)) {
+            fs_1.default.mkdirSync(UPLOADS_DIR, { recursive: true });
+        }
         // Kullanıcıyı bul
         const { data: user, error: userError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
@@ -151,10 +168,12 @@ const uploadAvatar = async (req, res) => {
         const avatarPath = path_1.default.join(UPLOADS_DIR, filename);
         // Dosyayı taşı
         fs_1.default.renameSync(req.file.path, avatarPath);
+        // Avatar URL'ini oluştur
+        const avatarUrl = `/uploads/avatars/${filename}`;
         // Veritabanını güncelle
         const { error: updateError } = await (0, supabase_1.getClient)()
             .from(supabase_1.TABLES.USERS)
-            .update({ avatar: `/uploads/avatars/${filename}` })
+            .update({ avatar: avatarUrl })
             .eq('id', userId);
         if (updateError) {
             console.error('Avatar yeniləmə xətası:', updateError);
@@ -162,7 +181,7 @@ const uploadAvatar = async (req, res) => {
         }
         res.json({
             success: true,
-            avatar: `/uploads/avatars/${filename}`
+            avatar: avatarUrl
         });
     }
     catch (error) {

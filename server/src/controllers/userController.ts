@@ -21,41 +21,53 @@ interface WatchlistRecord {
   count: number;
 }
 
+// Uploads için klasör yolları
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/avatars');
+const TEMP_DIR = path.join(__dirname, '../../uploads/temp');
 
-// Avatarlar klasörünü oluştur (yoksa)
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
-// Kullanılmayan avatarları temizle
+// Avatar temizleme işlemini optimize edelim
 const cleanupUnusedAvatars = async () => {
   try {
-    // Veritabanında kayıtlı tüm avatar dosyalarını al
-    const { data: avatars, error } = await getClient()
+    // Bu işlev sadece development modunda çalışsın
+    if (process.env.NODE_ENV !== 'development') return;
+
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+      return;
+    }
+
+    // Veritabanında kullanılan tüm avatarları al
+    const { data: users, error } = await getClient()
       .from(TABLES.USERS)
       .select('avatar')
       .not('avatar', 'is', null);
-    
+
     if (error) {
-      console.error('Avatar sorğusunda xəta:', error);
+      console.error('Avatar temizleme sorğusunda xəta:', error);
       return;
     }
-    
-    // Dosya sistemindeki tüm avatar dosyalarını al
+
+    // Veritabanındaki avatar dosya adlarını çıkar
+    const dbAvatars = users
+      .filter(user => user.avatar)
+      .map(user => path.basename(user.avatar));
+
+    // Dosya sistemindeki tüm avatarları kontrol et
     const files = fs.readdirSync(UPLOADS_DIR);
     
-    // Veritabanında olmayan dosyaları bul ve sil
+    // Kullanılmayan dosyaları bul ve sil
     for (const file of files) {
-      // Sadece dosya adını karşılaştır, yolu hariç
-      const isUsed = avatars.some(a => a.avatar && path.basename(a.avatar) === file);
-      
-      if (!isUsed) {
-        fs.unlinkSync(path.join(UPLOADS_DIR, file));
+      if (!dbAvatars.includes(file) && !file.startsWith('.')) {
+        try {
+          fs.unlinkSync(path.join(UPLOADS_DIR, file));
+          console.log(`İstifadə edilməyən avatar silindi: ${file}`);
+        } catch (err) {
+          console.error(`Avatar silinərkən xəta: ${file}`, err);
+        }
       }
     }
-  } catch (error) {
-    console.error('Temizleme prosesində xəta:', error);
+  } catch (err) {
+    console.error('Avatar temizleme prosesində xəta:', err);
   }
 };
 
@@ -150,6 +162,11 @@ export const uploadAvatar = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Şəkil yüklənmədi' });
     }
     
+    // Avatar klasörünün var olduğundan emin ol
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    
     // Kullanıcıyı bul
     const { data: user, error: userError } = await getClient()
       .from(TABLES.USERS)
@@ -188,10 +205,13 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     // Dosyayı taşı
     fs.renameSync(req.file.path, avatarPath);
     
+    // Avatar URL'ini oluştur
+    const avatarUrl = `/uploads/avatars/${filename}`;
+    
     // Veritabanını güncelle
     const { error: updateError } = await getClient()
       .from(TABLES.USERS)
-      .update({ avatar: `/uploads/avatars/${filename}` })
+      .update({ avatar: avatarUrl })
       .eq('id', userId);
     
     if (updateError) {
@@ -201,7 +221,7 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     
     res.json({ 
       success: true, 
-      avatar: `/uploads/avatars/${filename}` 
+      avatar: avatarUrl 
     });
   } catch (error) {
     console.error('Avatar yükləmə xətası:', error);
