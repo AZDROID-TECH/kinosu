@@ -4,7 +4,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 // Render.com için varsayılan olarak prodüksiyon URL'sini kullanıyoruz
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kinosu.onrender.com';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://kinosu.azdroid.tech';
 
 /**
  * Şifrə yeniləmə emaili üçün HTML şablonu

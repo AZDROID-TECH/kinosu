@@ -32,7 +32,7 @@ Kinosu, film həvəskarları üçün hazırlanmış müasir və istifadəçi dos
 
 Kinosu'nun canlı versiyasına aşağıdakı ünvandan daxil ola bilərsiniz:
 
-- [kinosu.onrender.com](https://kinosu.onrender.com)
+- [kinosu.azdroid.tech](https://kinosu.azdroid.tech)
 
 ## 👤 İstifadəçilər üçün İstifadə Təlimatı
 
