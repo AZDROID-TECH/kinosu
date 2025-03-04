@@ -15,9 +15,13 @@ dotenv.config();
 const app = express();
 
 // Uploads klasörünü oluştur (yoksa)
-const uploadsDir = path.join(__dirname, '../uploads');
-const tempDir = path.join(__dirname, '../uploads/temp');
-const avatarsDir = path.join(__dirname, '../uploads/avatars');
+// Render.com için disk yolu kontrolü
+const isRenderEnvironment = process.env.RENDER === 'true';
+const uploadsDir = isRenderEnvironment 
+  ? '/opt/render/project/src/server/uploads'
+  : path.join(__dirname, '../uploads');
+const tempDir = path.join(uploadsDir, 'temp');
+const avatarsDir = path.join(uploadsDir, 'avatars');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -79,8 +83,13 @@ app.use(cors());
 app.use(express.json());
 app.use(rateLimiter);
 
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Sistem işləyir' });
+});
+
 // Static dosya sunucusu
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // API Routes
 app.use('/api/auth', authRoutes);
