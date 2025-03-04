@@ -72,7 +72,7 @@ Kinosu tətbiqini Render.com-da deploy etmək üçün aşağıdakı addımları 
 4. Aşağıdakı parametrləri təyin edin:
    - **Name**: kinosu (və ya istədiyiniz ad)
    - **Environment**: Node
-   - **Build Command**: `npm install && npm run build:full`
+   - **Build Command**: `npm install && cd server && npm install && cd .. && npm run build:full`
    - **Start Command**: `cd server && npm start`
    
 5. "Environment Variables" bölməsində aşağıdakı dəyişənləri əlavə edin:

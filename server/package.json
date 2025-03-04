@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
+    "prebuild": "npm install @types/express @types/cors @types/bcryptjs @types/jsonwebtoken @types/nodemailer @types/uuid @types/multer --no-save",
     "build": "tsc",
     "serve": "npm run build && node dist/index.js",
     "build:full": "cd .. && npm run build:server && cd server && npm run build"
