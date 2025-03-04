@@ -15,24 +15,25 @@ dotenv.config();
 const app = express();
 
 // Uploads klasörünü oluştur (yoksa)
-// Render.com için disk yolu kontrolü
-const isRenderEnvironment = process.env.RENDER === 'true';
-const uploadsDir = isRenderEnvironment 
-  ? '/opt/render/project/src/server/uploads'
-  : path.join(__dirname, '../uploads');
-const tempDir = path.join(uploadsDir, 'temp');
-const avatarsDir = path.join(uploadsDir, 'avatars');
+const uploadsDir = path.join(__dirname, '../uploads');
+const tempDir = path.join(__dirname, '../uploads/temp');
+const avatarsDir = path.join(__dirname, '../uploads/avatars');
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
 
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-}
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
 
-if (!fs.existsSync(avatarsDir)) {
-  fs.mkdirSync(avatarsDir, { recursive: true });
+  if (!fs.existsSync(avatarsDir)) {
+    fs.mkdirSync(avatarsDir, { recursive: true });
+  }
+} catch (error) {
+  console.error('Uploads klasörü oluşturulurken hata:', error);
+  // Hata olsa bile uygulamanın çalışmasına devam et
 }
 
 // Supabase cədvəl strukturunu yoxla və yarat (əgər yoxdursa)
@@ -83,13 +84,8 @@ app.use(cors());
 app.use(express.json());
 app.use(rateLimiter);
 
-// Health check endpoint for Render
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Sistem işləyir' });
-});
-
 // Static dosya sunucusu
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // API Routes
 app.use('/api/auth', authRoutes);

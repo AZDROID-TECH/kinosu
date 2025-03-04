@@ -2,19 +2,33 @@ services:
   - type: web
     name: kinosu
     env: node
-    region: frankfurt
-    plan: free
     buildCommand: npm install && npm run build:full
     startCommand: cd server && npm start
-    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
-      - key: RENDER
-        value: true
-    disk:
-      name: uploads
-      mountPath: /opt/render/project/src/server/uploads
-      sizeGB: 1 
+      - key: JWT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: VITE_OMDB_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        fromService:
+          name: kinosu
+          type: web
+          property: url 

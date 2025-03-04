@@ -24,7 +24,7 @@ Kinosu, film həvəskarları üçün hazırlanmış müasir və istifadəçi dos
 
 - **Backend:**
   - Node.js + Express
-  - SQLite
+  - Supabase
   - JWT Authentication
   - RESTful API
 
@@ -51,18 +51,45 @@ npm install
 VITE_OMDB_API_KEY=your_omdb_api_key
 JWT_SECRET=your_jwt_secret
 PORT=5000
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+SUPABASE_SERVICE_KEY=your_supabase_service_key
 ```
 
 4. Tətbiqi işə salın:
 ```bash
-# Backend serverini işə salın
-cd server
-npm run dev
-
-# Yeni terminal pəncərəsində frontend-i işə salın
-cd ..
-npm run dev
+# Tam tətbiqi işə salın (frontend və backend)
+npm run dev:full
 ```
+
+## 🚀 Render.com-da Deployment
+
+Kinosu tətbiqini Render.com-da deploy etmək üçün aşağıdakı addımları izləyin:
+
+1. [Render.com](https://render.com) hesabı yaradın
+2. Dashboard-dan "New Web Service" seçin
+3. GitHub/GitLab/Bitbucket reponuzu qoşun
+4. Aşağıdakı parametrləri təyin edin:
+   - **Name**: kinosu (və ya istədiyiniz ad)
+   - **Environment**: Node
+   - **Build Command**: `npm install && npm run build:full`
+   - **Start Command**: `cd server && npm start`
+   
+5. "Environment Variables" bölməsində aşağıdakı dəyişənləri əlavə edin:
+   - `NODE_ENV`: production
+   - `PORT`: 10000
+   - `JWT_SECRET`: (təhlükəsiz bir açar)
+   - `SMTP_HOST`: smtp.gmail.com
+   - `SMTP_PORT`: 587
+   - `SMTP_USER`: (e-poçt ünvanınız)
+   - `SMTP_PASS`: (e-poçt şifrəniz)
+   - `VITE_OMDB_API_KEY`: (OMDB API açarınız)
+   - `SUPABASE_URL`: (Supabase URL-niz)
+   - `SUPABASE_KEY`: (Supabase açarınız)
+   - `SUPABASE_SERVICE_KEY`: (Supabase servis açarınız)
+   - `FRONTEND_URL`: (boş buraxın, avtomatik doldurulacaq)
+
+6. "Create Web Service" düyməsinə basın və deployment prosesini izləyin
 
 ## 📸 Ekran Görüntüləri
 
@@ -87,6 +114,8 @@ MIT License - daha ətraflı məlumat üçün [LICENSE](LICENSE) faylına baxın
 - [OMDb API](http://www.omdbapi.com/) - Film məlumatları üçün
 - [Material-UI](https://mui.com/) - UI komponentləri üçün
 - [BoxIcons](https://boxicons.com/) - İkonlar üçün
+- [Render.com](https://render.com) - Hosting xidmətləri üçün
+- [Supabase](https://supabase.com) - Verilənlər bazası xidmətləri üçün
 
 ---
 
