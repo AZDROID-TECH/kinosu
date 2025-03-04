@@ -2,11 +2,17 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
-import path from 'path';
 
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Kök dizinde otomatik olarak .env yüklenir
+dotenv.config();
 
+// Fallback için sabit anahtar ama Render.com'da çevre değişkeni kullanılacak
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
+
+// JWT_SECRET kontrolü ve uyarı
+if (!process.env.JWT_SECRET) {
+  console.warn('UYARI: JWT_SECRET çevre değişkeni ayarlanmamış! Varsayılan güvenli olmayan anahtar kullanılıyor.');
+}
 
 interface JwtPayload {
   id: number;

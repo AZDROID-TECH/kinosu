@@ -78,7 +78,7 @@ Kinosu tətbiqini Render.com-da deploy etmək üçün aşağıdakı addımları 
 5. "Environment Variables" bölməsində aşağıdakı dəyişənləri əlavə edin:
    - `NODE_ENV`: production
    - `PORT`: 10000
-   - `JWT_SECRET`: (təhlükəsiz bir açar)
+   - `JWT_SECRET`: (təhlükəsiz bir açar - ən azı 32 simvolluq olmalıdır, məs. `5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8`)
    - `SMTP_HOST`: smtp.gmail.com
    - `SMTP_PORT`: 587
    - `SMTP_USER`: (e-poçt ünvanınız)
@@ -90,6 +90,10 @@ Kinosu tətbiqini Render.com-da deploy etmək üçün aşağıdakı addımları 
    - `FRONTEND_URL`: (boş buraxın, avtomatik doldurulacaq)
 
 6. "Create Web Service" düyməsinə basın və deployment prosesini izləyin
+
+7. **Əlavə qeydlər**:
+   - JWT_SECRET çevre dəyişəni olmadıqda və ya düzgün təyin edilmədikdə autentifikasiya xətaları görə bilərsiniz (jwt malformed)
+   - Problemi həll etmək üçün servisi yenidən tikdirməyi (redeploy) və ya çevre dəyişənlərinizi yoxlamağı unutmayın
 
 ## 📸 Ekran Görüntüləri
 
