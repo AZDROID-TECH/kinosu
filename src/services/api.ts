@@ -58,34 +58,29 @@ const handleApiResponse = async (response: Response) => {
           errorData = { error: 'API xətası' };
         }
       } else {
-        const responseText = await response.text();
-        errorData = { error: responseText || 'Bilinməyən xəta' };
+        errorData = { error: 'Server cavab vermədi' };
       }
-    } catch (parseError) {
-      console.error('API yanıt məzmunu təhlil edilərkən xəta:', parseError);
-      errorData = { error: 'Yanıt təhlil edilə bilmədi' };
+    } catch {
+      errorData = { error: 'Cavabı emal etmək mümkün olmadı' };
     }
     
-    console.error('API xətası:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorData
-    });
+    // Token ilə ilgili hata ise oturumu sonlandır (401 veya 403)
+    if (response.status === 401 || response.status === 403) {
+      // Sonsuz döngüyü önlemek için logout endpointi çağrılıyorsa işlemi atla
+      if (!response.url.includes('/api/auth/logout')) {
+        // Local storage'dan token ve kullanıcı adını temizle
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        
+        // Kullanıcıyı login sayfasına yönlendir
+        window.location.href = '/login';
+      }
+    }
     
-    throw new Error(errorData.error);
+    throw errorData;
   }
   
-  try {
-    const text = await response.text();
-    if (!text.trim()) {
-      return {}; 
-    }
-    
-    return JSON.parse(text);
-  } catch (parseError) {
-    console.error('API yanıt məzmunu təhlil edilərkən xəta:', parseError);
-    throw new Error('Yanıt təhlil edilə bilmədi');
-  }
+  return response.json();
 };
 
 export const authAPI = {

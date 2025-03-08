@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   Container,
   Grid,
@@ -36,6 +37,7 @@ import 'boxicons/css/boxicons.min.css';
 
 const Home = () => {
   const navigate = useNavigate();
+  const { isLoggedIn, checkAuthStatus } = useAuth();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [imdbSearchQuery, setImdbSearchQuery] = useState('');
@@ -53,14 +55,21 @@ const Home = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    fetchMovies();
-  }, [navigate]);
+    const verifyAuthAndLoadData = async () => {
+      // Kullanıcının oturum durumunu kontrol et
+      const isAuthenticated = await checkAuthStatus();
+      
+      if (!isAuthenticated) {
+        navigate('/login');
+        return;
+      }
+      
+      // Oturum açıksa verileri getir
+      fetchMovies();
+    };
+    
+    verifyAuthAndLoadData();
+  }, [navigate, checkAuthStatus]);
 
   useEffect(() => {
     const viewportMeta = document.querySelector('meta[name="viewport"]');
@@ -83,10 +92,18 @@ const Home = () => {
 
   const fetchMovies = async () => {
     try {
+      // API çağrısı öncesi token'ın geçerli olduğundan emin ol
+      const isAuthenticated = await checkAuthStatus();
+      if (!isAuthenticated) {
+        navigate('/login');
+        return;
+      }
+      
       const data = await movieAPI.getMovies();
       const sortedMovies = sortMovies([...data], selectedSort);
       setMovies(sortedMovies);
     } catch (error) {
+      // API servisi 401/403 durumlarını otomatik olarak işleyecek
       console.error('Error fetching movies:', error);
     }
   };

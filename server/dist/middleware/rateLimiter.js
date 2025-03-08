@@ -4,7 +4,7 @@ exports.rateLimiter = void 0;
 const supabase_1 = require("../utils/supabase");
 // Rate limiter sabitlerini tanımla
 const WINDOW_SIZE = 15 * 60 * 1000; // 15 dakika
-const MAX_REQUESTS = 100; // 15 dakikada maksimum 100 istek
+const MAX_REQUESTS = 1000; // 15 dakikada maksimum 1000 istek
 const rateLimiter = async (req, res, next) => {
     const ip = req.ip;
     const now = Date.now();

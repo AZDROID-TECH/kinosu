@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => void;
   refreshProfile: () => Promise<void>;
   updateAvatar: (avatarUrl: string | null) => void;
+  checkAuthStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [avatar, setAvatar] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Token geçerliliğini kontrol et
+  const checkAuthStatus = async (): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsLoggedIn(false);
+      return false;
+    }
+
+    try {
+      // Profile erişimi token geçerliliğini test eder
+      await userAPI.getProfile();
+      return true;
+    } catch (error) {
+      // Hata durumunda oturumu sonlandır
+      logout();
+      return false;
+    }
+  };
+
   const refreshProfile = async () => {
     try {
       const profile = await userAPI.getProfile();
@@ -49,13 +69,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const savedUsername = localStorage.getItem('username');
-    if (token && savedUsername) {
-      setIsLoggedIn(true);
-      setUsername(savedUsername);
-      refreshProfile();
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      const savedUsername = localStorage.getItem('username');
+      
+      if (token && savedUsername) {
+        // Token geçerliliğini kontrol et
+        const isValid = await checkAuthStatus();
+        
+        if (isValid) {
+          setIsLoggedIn(true);
+          setUsername(savedUsername);
+          await refreshProfile();
+        } else {
+          // Token geçersizse tüm state'leri temizle
+          setIsLoggedIn(false);
+          setUsername(null);
+          setEmail(null);
+          setAvatar(null);
+        }
+      }
+    };
+    
+    initAuth();
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -94,7 +130,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         login, 
         logout,
         refreshProfile,
-        updateAvatar
+        updateAvatar,
+        checkAuthStatus
       }}
     >
       {children}

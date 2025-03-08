@@ -8,26 +8,33 @@ const cors_1 = __importDefault(require("cors"));
 const auth_1 = __importDefault(require("./routes/auth"));
 const movies_1 = __importDefault(require("./routes/movies"));
 const user_1 = __importDefault(require("./routes/user"));
+const health_1 = __importDefault(require("./routes/health"));
 const rateLimiter_1 = require("./middleware/rateLimiter");
+const keepAlive_1 = require("./utils/keepAlive");
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const supabase_1 = require("./utils/supabase");
-// .env faylını yüklə
+// .env faylını yüklə - main dotenv yüklemesi
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 // Uploads klasörünü oluştur (yoksa)
 const uploadsDir = path_1.default.join(__dirname, '../uploads');
 const tempDir = path_1.default.join(__dirname, '../uploads/temp');
 const avatarsDir = path_1.default.join(__dirname, '../uploads/avatars');
-if (!fs_1.default.existsSync(uploadsDir)) {
-    fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+try {
+    if (!fs_1.default.existsSync(uploadsDir)) {
+        fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+    }
+    if (!fs_1.default.existsSync(tempDir)) {
+        fs_1.default.mkdirSync(tempDir, { recursive: true });
+    }
+    if (!fs_1.default.existsSync(avatarsDir)) {
+        fs_1.default.mkdirSync(avatarsDir, { recursive: true });
+    }
 }
-if (!fs_1.default.existsSync(tempDir)) {
-    fs_1.default.mkdirSync(tempDir, { recursive: true });
-}
-if (!fs_1.default.existsSync(avatarsDir)) {
-    fs_1.default.mkdirSync(avatarsDir, { recursive: true });
+catch (error) {
+    // Hata olsa bile uygulamanın çalışmasına devam et
 }
 // Supabase cədvəl strukturunu yoxla və yarat (əgər yoxdursa)
 const initializeDatabase = async () => {
@@ -80,6 +87,9 @@ app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../
 app.use('/api/auth', auth_1.default);
 app.use('/api/movies', movies_1.default);
 app.use('/api/user', user_1.default);
+app.use('/api/health', health_1.default);
+// Render.com için keep alive mekanizmasını başlat
+(0, keepAlive_1.setupKeepAlive)();
 // Frontend statik dosyalarını sunma - dağıtım klasörü
 const distPath = path_1.default.join(__dirname, '../public');
 // Frontend build dosyalarını sunmak için statik middleware

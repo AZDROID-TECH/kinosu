@@ -6,9 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const path_1 = __importDefault(require("path"));
-dotenv_1.default.config({ path: path_1.default.resolve(__dirname, '../../../.env') });
+// Kök dizinde otomatik olarak .env yüklenir
+dotenv_1.default.config();
+// Fallback için sabit anahtar ama Render.com'da çevre değişkeni kullanılacak
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
+// JWT_SECRET kontrolü ve uyarı
+if (!process.env.JWT_SECRET) {
+    console.warn('UYARI: JWT_SECRET çevre değişkeni ayarlanmamış! Varsayılan güvenli olmayan anahtar kullanılıyor.');
+}
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];

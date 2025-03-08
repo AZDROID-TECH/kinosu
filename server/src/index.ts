@@ -3,7 +3,9 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import movieRoutes from './routes/movies';
 import userRoutes from './routes/user';
+import healthRoutes from './routes/health';
 import { rateLimiter } from './middleware/rateLimiter';
+import { setupKeepAlive } from './utils/keepAlive';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -11,14 +13,6 @@ import { TABLES, getClient } from './utils/supabase';
 
 // .env faylını yüklə - main dotenv yüklemesi
 dotenv.config();
-
-// Ortam değişkenlerinin kontrolü
-console.log('Çevre Değişkenleri Durumu:');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('PORT:', process.env.PORT);
-console.log('JWT_SECRET mevcut:', process.env.JWT_SECRET ? 'Evet' : 'Hayır');
-console.log('SUPABASE_URL mevcut:', process.env.SUPABASE_URL ? 'Evet' : 'Hayır');
-console.log('SUPABASE_KEY mevcut:', process.env.SUPABASE_KEY ? 'Evet' : 'Hayır');
 
 const app = express();
 
@@ -40,7 +34,6 @@ try {
     fs.mkdirSync(avatarsDir, { recursive: true });
   }
 } catch (error) {
-  console.error('Uploads klasörü oluşturulurken hata:', error);
   // Hata olsa bile uygulamanın çalışmasına devam et
 }
 
@@ -99,6 +92,10 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/health', healthRoutes);
+
+// Render.com için keep alive mekanizmasını başlat
+setupKeepAlive();
 
 // Frontend statik dosyalarını sunma - dağıtım klasörü
 const distPath = path.join(__dirname, '../public');
