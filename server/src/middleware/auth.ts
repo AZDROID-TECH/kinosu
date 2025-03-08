@@ -39,15 +39,6 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    // Önce token içeriğini doğrulamadan decode et (sadece içeriği görmek için)
-    let decodedInfo: JwtPayload | null = null;
-    try {
-      decodedInfo = jwt.decode(token) as JwtPayload;
-    } catch (decodeError) {
-      // Decode hatası varsa sessizce devam et
-    }
-    
-    // Token'ı doğrula
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     
     // Tutarlı yapı için id'yi userId olarak ata
@@ -58,16 +49,13 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     
     next();
   } catch (error) {
-    // Özelleştirilmiş hata mesajı oluştur
-    if (error instanceof jwt.TokenExpiredError) {
-      const username = decodedInfo?.username || 'bilinməyən istifadəçi';
-      console.log(`Token müddəti bitdiyi üçün "${username}" istifadəçi sessiyası bağlandı`);
-    } else if (error instanceof jwt.JsonWebTokenError) {
-      console.log('Yanlış formatda token aşkar edildi');
-    } else {
-      console.log('Token doğrulama zamanı xəta baş verdi');
+    // Hata tipine göre farklı mesajlar göster
+    let errorMessage = 'Token etibarsızdır';
+    
+    if (error instanceof Error && error.name === 'TokenExpiredError') {
+      errorMessage = 'Token vaxtı bitib, zəhmət olmasa yenidən daxil olun';
     }
     
-    return res.status(403).json({ error: 'Token etibarsızdır' });
+    return res.status(403).json({ error: errorMessage });
   }
 }; 
