@@ -5,12 +5,6 @@ import axios from 'axios';
  * 15 dakikalık inaktivite sonrası uyku moduna geçmemesi için her 5 dakikada bir ping atar.
  */
 export function setupKeepAlive(): void {
-  // Ortam production değilse çalıştırma
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Keep-alive script yalnızca production ortamında çalışır');
-    return;
-  }
-
   // Sunucu URL'sini al veya varsayılan olarak kendi adresini kullan
   const appUrl = process.env.RENDER_EXTERNAL_URL || process.env.FRONTEND_URL;
   
